@@ -124,7 +124,7 @@ class InteractionsCell(MemoryCell):
                     )
                 except Exception:
                     pass
-                # Auto-detect research questions in user messages
+                # ── Auto-detect: research questions (user messages) ──────────────
                 if role == "user":
                     try:
                         from src.cells.research_questions.cell import _is_question
@@ -157,6 +157,167 @@ class InteractionsCell(MemoryCell):
                                 db2.close()
                     except Exception:
                         pass
+
+                # ── Auto-detect: code snippets (assistant messages with code fences) ──
+                if role == "assistant":
+                    try:
+                        import re as _re
+                        _code_blocks = _re.findall(
+                            r"```(\w*)\n(.*?)```", content, _re.DOTALL
+                        )
+                        if _code_blocks:
+                            from src.cells.snippets.model import CodeSnippet as _CS
+                            from src.services.weaviate_service import get_weaviate_service as _gwvs3
+                            db3 = SessionLocal()
+                            try:
+                                for _lang, _code in _code_blocks:
+                                    _code = _code.strip()
+                                    if len(_code) < 10:
+                                        continue
+                                    _title = f"Auto-detected {_lang or 'code'} snippet"
+                                    _cs = _CS(
+                                        title=_title,
+                                        code_content=_code,
+                                        language=_lang or None,
+                                        meta_data={"source_interaction_id": str(interaction.id)},
+                                    )
+                                    db3.add(_cs)
+                                    db3.commit()
+                                    db3.refresh(_cs)
+                                    try:
+                                        _gwvs3().index_code_snippet(
+                                            str(_cs.id),
+                                            title=_title,
+                                            code_content=_code,
+                                            language=_lang or None,
+                                        )
+                                    except Exception:
+                                        pass
+                            finally:
+                                db3.close()
+                    except Exception:
+                        pass
+
+                # ── Auto-detect: files discussed (any role, file path patterns) ──────
+                try:
+                    import re as _re
+                    _FILE_PATTERN = _re.compile(
+                        r"(?:[a-zA-Z]:[\\/]|\.{1,2}[\\/]|src[\\/]|/[\w])"
+                        r"[\w/\\.\\-]+"
+                        r"\.(?:py|ts|js|yaml|yml|json|toml|md|sh|tf|bicep|cs|go|rs|java|html|css)"
+                    )
+                    _found_paths = list(dict.fromkeys(_FILE_PATTERN.findall(content)))
+                    if _found_paths:
+                        from src.cells.files_discussed.model import FileDiscussed as _FD
+                        from src.services.weaviate_service import get_weaviate_service as _gwvs4
+                        db4 = SessionLocal()
+                        try:
+                            for _fp in _found_paths[:10]:
+                                _existing = db4.query(_FD).filter(_FD.file_path == _fp).first()
+                                if _existing:
+                                    _existing.discussion_count = (_existing.discussion_count or 1) + 1
+                                    db4.commit()
+                                else:
+                                    _fd = _FD(
+                                        file_path=_fp,
+                                        meta_data={"source_interaction_id": str(interaction.id)},
+                                    )
+                                    db4.add(_fd)
+                                    db4.commit()
+                                    db4.refresh(_fd)
+                                    try:
+                                        _gwvs4().index_file_discussed(
+                                            str(_fd.id),
+                                            file_path=_fp,
+                                        )
+                                    except Exception:
+                                        pass
+                        finally:
+                            db4.close()
+                except Exception:
+                    pass
+
+                # ── Auto-detect: design decisions (assistant messages) ───────────────
+                if role == "assistant":
+                    try:
+                        import re as _re
+                        _DECISION_PATTERN = _re.compile(
+                            r"\b(we\s+(?:gaan|kiezen|gebruiken|besluiten)|besloten\s+om|"
+                            r"aanbeveling[:\s]|ik\s+(?:raad|adviseer)|"
+                            r"we\s+(?:should|will|are\s+going\s+to)\s+use|"
+                            r"i\s+recommend|decided\s+to|going\s+with|"
+                            r"best\s+(?:practice|approach)\s+is)\b",
+                            _re.IGNORECASE,
+                        )
+                        if _DECISION_PATTERN.search(content):
+                            from src.cells.decisions.model import DesignDecision as _DD
+                            from src.services.weaviate_service import get_weaviate_service as _gwvs5
+                            _sentence = next(
+                                (s.strip() for s in content.split("\n") if _DECISION_PATTERN.search(s)),
+                                content[:200],
+                            )
+                            db5 = SessionLocal()
+                            try:
+                                _dd = _DD(
+                                    decision=_sentence,
+                                    rationale="Auto-detected from assistant message",
+                                    status="proposed",
+                                    meta_data={"source_interaction_id": str(interaction.id)},
+                                )
+                                db5.add(_dd)
+                                db5.commit()
+                                db5.refresh(_dd)
+                                try:
+                                    _gwvs5().index_decision(
+                                        str(_dd.id),
+                                        decision=_dd.decision,
+                                        rationale=_dd.rationale,
+                                    )
+                                except Exception:
+                                    pass
+                            finally:
+                                db5.close()
+                    except Exception:
+                        pass
+
+                # ── Auto-answer: link assistant reply to pending research question ───
+                if role == "assistant":
+                    try:
+                        from src.services.weaviate_service import get_weaviate_service as _gwvs6
+                        from src.cells.research_questions.model import ResearchQuestion as _RQ2
+                        _hits = _gwvs6().search_research_questions(query=content[:500], limit=1)
+                        if _hits:
+                            _hit = _hits[0]
+                            _dist = _hit.get("distance", 1.0)
+                            _hit_status = _hit.get("status", "")
+                            if _dist is not None and _dist < 0.25 and _hit_status == "pending":
+                                _rq_id = _hit.get("embedding_id") or str(_hit.get("uuid", ""))
+                                if _rq_id:
+                                    db6 = SessionLocal()
+                                    try:
+                                        from uuid import UUID as _UUID
+                                        _rq_obj = db6.query(_RQ2).filter(
+                                            _RQ2.id == _UUID(_rq_id)
+                                        ).first()
+                                        if _rq_obj and _rq_obj.status == "pending":
+                                            _rq_obj.status = "answered"
+                                            _rq_obj.answer = content[:1000]
+                                            db6.commit()
+                                            try:
+                                                _gwvs6().index_research_question(
+                                                    str(_rq_obj.id),
+                                                    question=_rq_obj.question,
+                                                    status="answered",
+                                                    priority=_rq_obj.priority,
+                                                    source=_rq_obj.source,
+                                                )
+                                            except Exception:
+                                                pass
+                                    finally:
+                                        db6.close()
+                    except Exception:
+                        pass
+
                 return {"success": True, "id": str(interaction.id), "retention_days": retention.retention_days, "retain_reason": retention.reason}
             finally:
                 db.close()
