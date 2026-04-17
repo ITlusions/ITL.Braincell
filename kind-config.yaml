@@ -1,0 +1,12 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 80
+        # map to host port range starting at 9600
+        hostPort: 9600
+        protocol: TCP
+      - containerPort: 50051
+        hostPort: 9601
+        protocol: TCP

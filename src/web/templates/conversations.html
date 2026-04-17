@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Conversations - BrainCell Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="bi bi-chat-dots"></i>
+    Conversations
+  </h1>
+  <p class="page-subtitle">Conversation history and context</p>
+</div>
+
+<!-- Search -->
+<div class="card mb-4">
+  <div class="card-body">
+    <input type="text" class="form-control" placeholder="Search conversations by topic..." id="searchInput">
+  </div>
+</div>
+
+<!-- Items Grid -->
+{% if conversations %}
+<div class="items-container">
+  {% for conv in conversations %}
+  <div class="item-card">
+    <div class="item-title">{{ conv.topic }}</div>
+    
+    <div class="item-meta">
+      <span class="item-tag">
+        <i class="bi bi-chat-dots"></i> Conversation
+      </span>
+      {% if conv.meta_data and conv.meta_data.get('session_id') %}
+      <span class="item-tag">
+        Session: {{ conv.meta_data.session_id[:8] }}
+      </span>
+      {% endif %}
+    </div>
+    
+    {% if conv.summary %}
+    <div class="item-description">
+      {{ conv.summary }}
+    </div>
+    {% endif %}
+    
+    <div class="item-date">
+      <i class="bi bi-calendar"></i> {{ conv.created_at.strftime('%B %d, %Y at %H:%M') }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total > limit %}
+<nav class="mt-4" aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    {% if skip > 0 %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/conversations?skip={{ skip - limit }}&limit={{ limit }}">Previous</a>
+    </li>
+    {% endif %}
+    
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ (skip // limit) + 1 }} of {{ ((total + limit - 1) // limit) }}</span>
+    </li>
+    
+    {% if skip + limit < total %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/conversations?skip={{ skip + limit }}&limit={{ limit }}">Next</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info" role="alert">
+  <i class="bi bi-info-circle"></i>
+  No conversations found yet. Start a conversation to create memory.
+</div>
+{% endif %}
+
+<script>
+document.getElementById('searchInput').addEventListener('keyup', function(e) {
+  const term = e.target.value.toLowerCase();
+  document.querySelectorAll('.item-card').forEach(card => {
+    const title = card.querySelector('.item-title').textContent.toLowerCase();
+    const desc = card.querySelector('.item-description')?.textContent.toLowerCase() || '';
+    const visible = title.includes(term) || desc.includes(term);
+    card.style.display = visible ? '' : 'none';
+  });
+});
+</script>
+
+{% endblock %}

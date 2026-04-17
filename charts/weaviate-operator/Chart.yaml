@@ -1,0 +1,6 @@
+apiVersion: v2
+name: weaviate-operator
+description: A Helm chart to deploy the Weaviate Operator (for kind and regular clusters)
+type: application
+version: 0.1.0
+appVersion: "v0.0.0"

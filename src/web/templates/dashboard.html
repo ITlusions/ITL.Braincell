@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Overview - BrainCell Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="bi bi-speedometer2"></i>
+    Dashboard Overview
+  </h1>
+  <p class="page-subtitle">System statistics and recent activity</p>
+</div>
+
+<!-- Statistics Grid -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-chat-dots"></i></div>
+    <div class="stat-label">Conversations</div>
+    <div class="stat-number">{{ stats.conversations }}</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-lightbulb"></i></div>
+    <div class="stat-label">Decisions</div>
+    <div class="stat-number">{{ stats.decisions }}</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-diagram-3"></i></div>
+    <div class="stat-label">Architecture Notes</div>
+    <div class="stat-number">{{ stats.notes }}</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-code-slash"></i></div>
+    <div class="stat-label">Code Snippets</div>
+    <div class="stat-number">{{ stats.snippets }}</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon"><i class="bi bi-chat"></i></div>
+    <div class="stat-label">Interactions</div>
+    <div class="stat-number">{{ stats.interactions }}</div>
+  </div>
+</div>
+
+<!-- Recent Activity Sections -->
+<div class="row mt-4">
+  <!-- Recent Conversations -->
+  {% if recent_conversations %}
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">
+          <i class="bi bi-chat-dots"></i> Recent Conversations
+        </h5>
+      </div>
+      <div class="card-body">
+        {% for conv in recent_conversations %}
+        <div style="padding: 1rem 0; border-bottom: 1px solid #eee;">
+          <h6 style="margin-bottom: 0.5rem; color: var(--header-bg);">
+            {{ conv.topic[:50] }}{% if conv.topic|length > 50 %}...{% endif %}
+          </h6>
+          <small class="text-muted">
+            <i class="bi bi-calendar"></i>
+            {{ conv.created_at.strftime('%b %d, %Y') }}
+          </small>
+          {% if conv.summary %}
+          <p style="font-size: 13px; margin: 0.5rem 0 0; color: #666;">
+            {{ conv.summary[:100] }}{% if conv.summary|length > 100 %}...{% endif %}
+          </p>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <a href="/dashboard/conversations" class="btn btn-sm btn-outline-primary mt-2">
+          View All <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+  <!-- Recent Decisions -->
+  {% if recent_decisions %}
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">
+          <i class="bi bi-lightbulb"></i> Recent Decisions
+        </h5>
+      </div>
+      <div class="card-body">
+        {% for dec in recent_decisions %}
+        <div style="padding: 1rem 0; border-bottom: 1px solid #eee;">
+          <h6 style="margin-bottom: 0.5rem; color: var(--header-bg);">
+            {{ dec.decision[:50] }}{% if dec.decision|length > 50 %}...{% endif %}
+          </h6>
+          <small class="text-muted">
+            <i class="bi bi-calendar"></i>
+            {{ dec.created_at.strftime('%b %d, %Y') }}
+          </small>
+          {% if dec.status %}
+          <span class="item-tag" style="display: inline-block; margin-left: 0.5rem;">
+            {{ dec.status }}
+          </span>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <a href="/dashboard/decisions" class="btn btn-sm btn-outline-primary mt-2">
+          View All <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row mt-2">
+  <!-- Recent Architecture Notes -->
+  {% if recent_notes %}
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">
+          <i class="bi bi-diagram-3"></i> Recent Architecture Notes
+        </h5>
+      </div>
+      <div class="card-body">
+        {% for note in recent_notes %}
+        <div style="padding: 1rem 0; border-bottom: 1px solid #eee;">
+          <h6 style="margin-bottom: 0.5rem; color: var(--header-bg);">
+            {{ note.component }}
+          </h6>
+          <small class="text-muted">
+            <i class="bi bi-tag"></i> {{ note.type }}
+          </small>
+          <p style="font-size: 13px; margin: 0.5rem 0 0; color: #666;">
+            {{ note.description[:100] }}{% if note.description|length > 100 %}...{% endif %}
+          </p>
+        </div>
+        {% endfor %}
+        <a href="/dashboard/architecture-notes" class="btn btn-sm btn-outline-primary mt-2">
+          View All <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+  <!-- Recent Code Snippets -->
+  {% if recent_snippets %}
+  <div class="col-lg-6 mb-4">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title">
+          <i class="bi bi-code-slash"></i> Recent Code Snippets
+        </h5>
+      </div>
+      <div class="card-body">
+        {% for snippet in recent_snippets %}
+        <div style="padding: 1rem 0; border-bottom: 1px solid #eee;">
+          <h6 style="margin-bottom: 0.5rem; color: var(--header-bg);">
+            {{ snippet.title[:40] }}{% if snippet.title|length > 40 %}...{% endif %}
+          </h6>
+          <small class="text-muted">
+            <i class="bi bi-code"></i> {{ snippet.language or 'text' }}
+          </small>
+          {% if snippet.description %}
+          <p style="font-size: 13px; margin: 0.5rem 0 0; color: #666;">
+            {{ snippet.description[:100] }}{% if snippet.description|length > 100 %}...{% endif %}
+          </p>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <a href="/dashboard/code-snippets" class="btn btn-sm btn-outline-primary mt-2">
+          View All <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

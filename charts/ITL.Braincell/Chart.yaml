@@ -1,0 +1,19 @@
+apiVersion: v2
+name: ITL.Braincell
+description: Umbrella Helm chart to deploy the Braincell stack using CloudNativePG and the Weaviate Operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: cloudnative-pg
+    repository: "https://cloudnative-pg.github.io/charts"
+    version: "0.27.1"
+    condition: cnpg.enabled
+  - name: weaviate
+    repository: "https://weaviate.github.io/weaviate-helm"
+    version: "17.7.0"
+    condition: weaviate.enabled
+  - name: traefik
+    repository: "https://traefik.github.io/charts"
+    version: "26.0.0"
+    condition: traefik.enabled

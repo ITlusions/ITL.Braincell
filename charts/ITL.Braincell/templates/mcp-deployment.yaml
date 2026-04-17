@@ -1,0 +1,133 @@
+{{- if .Values.mcp.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: braincell-mcp
+  namespace: {{ .Release.Namespace | default .Values.namespace }}
+  labels:
+    app: braincell-mcp
+    component: mcp-server
+spec:
+  replicas: {{ .Values.mcp.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: braincell-mcp
+  template:
+    metadata:
+      labels:
+        app: braincell-mcp
+        component: mcp-server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: mcp
+        image: "{{ .Values.mcp.image.repository }}:{{ .Values.mcp.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: {{ .Values.mcp.port }}
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          value: "postgresql://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@braincell-itl-braincell-postgres:{{ .Values.postgres.port }}/{{ .Values.postgres.database }}"
+        - name: WEAVIATE_URL
+          value: "http://weaviate:80"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+              - ALL
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - braincell-mcp
+              topologyKey: kubernetes.io/hostname
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: braincell-mcp
+  namespace: {{ .Release.Namespace | default .Values.namespace }}
+  labels:
+    app: braincell-mcp
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: {{ .Values.mcp.port }}
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: braincell-mcp
+
+{{- if .Values.mcp.ingress.enabled }}
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: braincell-mcp
+  namespace: {{ .Release.Namespace | default .Values.namespace }}
+  labels:
+    app: braincell-mcp
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: "web"
+spec:
+  ingressClassName: {{ .Values.mcp.ingress.className }}
+  rules:
+  - http:
+      paths:
+      - path: {{ .Values.mcp.ingress.path }}
+        pathType: {{ .Values.mcp.ingress.pathType }}
+        backend:
+          service:
+            name: braincell-mcp
+            port:
+              number: {{ .Values.mcp.port }}
+
+{{- end }}
+{{- end }}

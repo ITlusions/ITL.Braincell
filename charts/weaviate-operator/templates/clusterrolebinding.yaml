@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "weaviate-operator.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{- if .Values.serviceAccount.name }}{{ .Values.serviceAccount.name }}{{- else }}{{ include "weaviate-operator.fullname" . }}{{- end }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "weaviate-operator.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io

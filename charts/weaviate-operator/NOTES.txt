@@ -1,0 +1,11 @@
+Thank you for installing the weaviate-operator chart.
+
+To see operator pods:
+
+  kubectl get pods -l app.kubernetes.io/name=weaviate-operator -n {{ .Release.Namespace }}
+
+To follow logs (example):
+
+  kubectl logs -l app.kubernetes.io/name=weaviate-operator -n {{ .Release.Namespace }} --tail=200 -f
+
+If you installed the placeholder CRD, create an example Weaviate CR to test the operator.

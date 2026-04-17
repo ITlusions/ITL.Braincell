@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: semitechnologies/weaviate-operator
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Operator-specific flags passed as command args
+operator:
+  watchNamespace: "" # when empty, watch all namespaces

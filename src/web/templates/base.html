@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  
+  <title>{% block title %}BrainCell Dashboard{% endblock %}</title>
+  
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="https://{{ request.url.netloc }}/assets/css/braincell.css">
+  
+  {% block extra_css %}{% endblock %}
+  
+  <style>
+    :root {
+      --primary-color: #0d6efd;
+      --secondary-color: #6c757d;
+      --accent-color: #7c3aed;
+      --success-color: #28a745;
+      --warning-color: #ffc107;
+      --danger-color: #dc3545;
+      --info-color: #0dcaf0;
+      --background-color: #f8f9fa;
+      --header-bg: #1a1a2e;
+      --surface-color: #ffffff;
+    }
+    
+    * {
+      font-family: 'Poppins', sans-serif;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Raleway', sans-serif;
+      font-weight: 700;
+    }
+    
+    body {
+      background-color: var(--background-color);
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Header Styling */
+    .header {
+      background: linear-gradient(135deg, var(--header-bg) 0%, #2d2d44 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: white;
+    }
+    
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-color), #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      font-size: 20px;
+    }
+    
+    .sitename {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .sitename small {
+      font-size: 12px;
+      opacity: 0.8;
+      display: block;
+    }
+    
+    /* Navigation */
+    .navmenu {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    
+    .navmenu a {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.3s;
+      position: relative;
+    }
+    
+    .navmenu a:hover,
+    .navmenu a.active {
+      color: var(--accent-color);
+    }
+    
+    .navmenu a.active::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent-color);
+    }
+    
+    /* Main Content */
+    .main-container {
+      margin-top: 80px;
+      padding: 2rem 0;
+      min-height: 100vh;
+    }
+    
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--header-bg);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .page-subtitle {
+      font-size: 1rem;
+      color: #666;
+      margin-bottom: 2rem;
+    }
+    
+    /* Cards */
+    .card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      background: var(--surface-color);
+      transition: all 0.3s;
+      overflow: hidden;
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #f0f4f8 0%, #e6eef8 100%);
+      border-bottom: 1px solid #e0e0e0;
+      padding: 1rem;
+    }
+    
+    .card-title {
+      margin: 0;
+      font-size: 18px;
+      color: var(--header-bg);
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: var(--surface-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-left: 4px solid var(--accent-color);
+    }
+    
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--accent-color);
+      margin: 0.5rem 0;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .stat-icon {
+      font-size: 32px;
+      color: var(--accent-color);
+      margin-bottom: 0.5rem;
+    }
+    
+    /* Items List */
+    .items-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .item-card {
+      background: var(--surface-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.3s;
+      border-left: 4px solid var(--accent-color);
+    }
+    
+    .item-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .item-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--header-bg);
+      margin-bottom: 0.5rem;
+      word-wrap: break-word;
+    }
+    
+    .item-meta {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .item-tag {
+      display: inline-block;
+      background: #f0f0f0;
+      color: #666;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .item-description {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    
+    .item-date {
+      color: #999;
+      font-size: 12px;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+    
+    /* Footer */
+    .footer {
+      background: var(--header-bg);
+      color: white;
+      padding: 2rem 0;
+      margin-top: 4rem;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .navmenu {
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+      }
+      
+      .page-title {
+        font-size: 1.75rem;
+      }
+      
+      .items-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container-lg">
+      <div class="header-content">
+        <a href="/dashboard/" class="logo-box">
+          <div class="logo-icon">
+            <i class="bi bi-brain"></i>
+          </div>
+          <div>
+            <div class="sitename">
+              BrainCell
+              <small>Memory Dashboard</small>
+            </div>
+          </div>
+        </a>
+        
+        <nav class="navmenu">
+          <a href="/dashboard/" class="{% if 'dashboard.html' in request.url.path %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i> Overview
+          </a>
+          <a href="/dashboard/conversations" class="{% if 'conversations' in request.url.path %}active{% endif %}">
+            <i class="bi bi-chat-dots"></i> Conversations
+          </a>
+          <a href="/dashboard/decisions" class="{% if 'decisions' in request.url.path %}active{% endif %}">
+            <i class="bi bi-lightbulb"></i> Decisions
+          </a>
+          <a href="/dashboard/architecture-notes" class="{% if 'architecture' in request.url.path %}active{% endif %}">
+            <i class="bi bi-diagram-3"></i> Architecture
+          </a>
+          <a href="/dashboard/code-snippets" class="{% if 'snippets' in request.url.path %}active{% endif %}">
+            <i class="bi bi-code-slash"></i> Snippets
+          </a>
+          <a href="/dashboard/search">
+            <i class="bi bi-search"></i> Search
+          </a>
+          <a href="/health" title="API Health">
+            <i class="bi bi-heart-pulse"></i>
+          </a>
+        </nav>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="main-container">
+    <div class="container-lg">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+  
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container-lg">
+      <p>&copy; 2026 ITL BrainCell. Memory and Context Management System.</p>
+    </div>
+  </footer>
+  
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

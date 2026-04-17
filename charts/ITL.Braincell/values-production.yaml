@@ -1,0 +1,332 @@
+# ITL.Braincell Production Values
+# This file contains production-ready configuration for deploying BrainCell to Kubernetes
+
+namespace: braincell
+
+# CloudNativePG Configuration
+cnpg:
+  enabled: true
+  clusterName: braincell-postgres
+  instances: 3  # High availability with 3 replicas
+  imageName: "docker.io/library/postgres:14"
+  postgresqlVersion: "14"
+  postgresUID: 999
+  postgresGID: 999
+  storage:
+    size: 50Gi  # Production storage
+    storageClass: "premium-rwo"  # Use your cloud provider's premium storage class
+  backup:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retentionPolicy: "30d"
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+# Weaviate Vector Database Configuration
+weaviate:
+  image:
+    registry: docker.io
+    tag: 1.34.0
+    repo: semitechnologies/weaviate
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+  command: ["/bin/weaviate"]
+  args:
+    - '--host'
+    - '0.0.0.0'
+    - '--port'
+    - '8080'
+    - '--scheme'
+    - 'http'
+    - '--config-file'
+    - '/weaviate-config/conf.yaml'
+    - --read-timeout=60s
+    - --write-timeout=60s
+
+  replicas: 3  # High availability
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+
+  resources:
+    requests:
+      memory: "4Gi"
+      cpu: "1000m"
+    limits:
+      memory: "8Gi"
+      cpu: "2000m"
+
+  storage:
+    name: "weaviate-data"
+    size: 100Gi  # Production storage
+    storageClassName: "premium-rwo"
+
+  service:
+    name: weaviate
+    ports:
+      - name: http
+        protocol: TCP
+        port: 80
+    type: ClusterIP  # Use ClusterIP, expose via Ingress
+    annotations: {}
+
+  grpcService:
+    enabled: true
+    name: weaviate-grpc
+    ports:
+      - name: grpc
+        protocol: TCP
+        port: 50051
+    type: ClusterIP
+
+  startupProbe:
+    enabled: true
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/ready
+        port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    failureThreshold: 30
+    timeoutSeconds: 5
+
+  livenessProbe:
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/live
+        port: 8080
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 5
+
+  readinessProbe:
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/ready
+        port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+    timeoutSeconds: 3
+
+  terminationGracePeriodSeconds: 600
+
+  authentication:
+    anonymous_access:
+      enabled: false  # Disable for production
+    oidc:
+      enabled: true
+      issuer: "https://your-identity-provider.com"
+      client_id: "weaviate-client"
+
+  authorization:
+    rbac:
+      enabled: true
+
+  env:
+    CLUSTER_GOSSIP_BIND_PORT: 7000
+    CLUSTER_DATA_BIND_PORT: 7001
+    RAFT_BOOTSTRAP_TIMEOUT: 600
+    GOGC: 100
+    PROMETHEUS_MONITORING_ENABLED: true
+    PROMETHEUS_MONITORING_GROUP: true
+    QUERY_MAXIMUM_RESULTS: 100000
+    TRACK_VECTOR_DIMENSIONS: true
+
+  # Anti-affinity voor spreiding over nodes
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - weaviate
+          topologyKey: kubernetes.io/hostname
+
+# BrainCell API Configuration
+api:
+  enabled: true
+  image:
+    repository: itlbraincell/api
+    tag: "1.0.0"  # Use specific version tag, not 'latest'
+    pullPolicy: IfNotPresent
+  replicaCount: 3  # High availability
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  env:
+    ENVIRONMENT: "production"
+    LOG_LEVEL: "INFO"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# MCP Server Configuration
+mcp:
+  enabled: true
+  image:
+    repository: itlbraincell/mcp
+    tag: "1.0.0"  # Use specific version tag
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  port: 9506
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  ingress:
+    enabled: true
+    className: traefik
+    path: /mcp
+    pathType: Prefix
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      traefik.ingress.kubernetes.io/router.middlewares: "braincell-ratelimit@kubernetescrd"
+    tls:
+      enabled: true
+      secretName: braincell-tls
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+# Traefik Ingress Controller
+traefik:
+  enabled: true
+  deployment:
+    replicas: 2  # High availability
+  ingressClass:
+    enabled: true
+    isDefaultClass: true
+  ports:
+    web:
+      port: 80
+      redirectTo:
+        port: websecure  # Redirect HTTP to HTTPS
+    websecure:
+      port: 443
+      tls:
+        enabled: true
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+  # TLS configuration
+  additionalArguments:
+    - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+    - "--certificatesresolvers.letsencrypt.acme.email=admin@your-domain.com"
+    - "--certificatesresolvers.letsencrypt.acme.storage=/data/acme.json"
+  persistence:
+    enabled: true
+    size: 1Gi
+
+# PostgreSQL Configuration (managed by CNPG)
+postgres:
+  enabled: false  # Managed by CNPG instead
+  database: braincell
+  user: braincell
+  # Password should be in Kubernetes Secret - see secrets management
+  passwordSecretName: braincell-postgres-secret
+  passwordSecretKey: password
+  port: 5432
+
+# Monitoring Configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+  grafana:
+    enabled: true
+    dashboards:
+      enabled: true
+
+# Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 3 * * *"  # Daily at 3 AM
+  s3:
+    enabled: true
+    bucket: "braincell-backups"
+    region: "eu-west-1"
+    # Credentials should be in Kubernetes Secret
+    secretName: "s3-backup-credentials"
+
+# Network Policies
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: braincell
+      ports:
+      - protocol: TCP
+        port: 8080
+      - protocol: TCP
+        port: 9506
+
+# Pod Disruption Budgets
+podDisruptionBudget:
+  api:
+    enabled: true
+    minAvailable: 2
+  mcp:
+    enabled: true
+    minAvailable: 1
+  weaviate:
+    enabled: true
+    minAvailable: 2
+
+# Image Pull Secrets (if using private registry)
+imagePullSecrets: []
+# - name: regcred
+
+# Global Labels
+labels:
+  app: braincell
+  environment: production
+  managed-by: helm
+
+# Global Annotations
+annotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"

@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for structured memory storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: braincell-postgres
+    environment:
+      POSTGRES_DB: braincell
+      POSTGRES_USER: braincell
+      POSTGRES_PASSWORD: braincell_dev_password
+    ports:
+      - "9500:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U braincell"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - braincell-network
+
+  # Weaviate vector database for semantic search
+  weaviate:
+    image: semitechnologies/weaviate:1.27.0
+    container_name: braincell-weaviate
+    ports:
+      - "9501:8080"
+      - "9502:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      ENABLE_API_AUTH: 'false'
+      RAFT_BOOTSTRAP_EXPECTED_NODES: '1'
+      RAFT_BOOTSTRAP_TIMEOUT: '300'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - braincell-network
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: braincell-redis
+    ports:
+      - "9503:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - braincell-network
+
+  # Python FastAPI application - REST API only
+  braincell-api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: braincell-api
+    ports:
+      - "9504:8000"
+    environment:
+      DATABASE_URL: "postgresql://braincell:braincell_dev_password@postgres:5432/braincell"
+      WEAVIATE_URL: "http://weaviate:8080"
+      REDIS_URL: "redis://redis:6379"
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+    command: "python -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - braincell-network
+
+  # BrainCell Dashboard - Web UI
+  braincell-dashboard:
+    build:
+      context: .
+      dockerfile: src/web/Dockerfile
+    container_name: braincell-dashboard
+    ports:
+      - "9507:8001"
+    environment:
+      DATABASE_URL: "postgresql://braincell:braincell_dev_password@postgres:5432/braincell"
+      WEAVIATE_URL: "http://weaviate:8080"
+      REDIS_URL: "redis://redis:6379"
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+    command: "python -m uvicorn src.web.app:app --host 0.0.0.0 --port 8001 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - braincell-network
+
+  # BrainCell MCP Server - Model Context Protocol interface
+  braincell-mcp:
+    build:
+      context: .
+      dockerfile: mcp/Dockerfile
+    container_name: braincell-mcp
+    ports:
+      - "9506:9506"
+    environment:
+      DATABASE_URL: "postgresql://braincell:braincell_dev_password@postgres:5432/braincell"
+      ENVIRONMENT: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9506/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - braincell-network
+
+  # PgAdmin for PostgreSQL management (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: braincell-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "9505:80"
+    depends_on:
+      - postgres
+    networks:
+      - braincell-network
+
+volumes:
+  postgres_data:
+  weaviate_data:
+  redis_data:
+
+networks:
+  braincell-network:
+    driver: bridge

@@ -1,0 +1,22 @@
+{{- if .Values.postgres.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fullname" . }}-postgres
+  namespace: {{ .Release.Namespace | default .Values.namespace }}
+  labels:
+    app: {{ include "fullname" . }}-postgres
+spec:
+  type: {{ .Values.postgres.service.type }}
+  ports:
+    - port: 5432
+      targetPort: {{ .Values.postgres.port }}
+      protocol: TCP
+      name: postgresql
+      {{- if and (eq .Values.postgres.service.type "NodePort") .Values.postgres.service.nodePort }}
+      nodePort: {{ .Values.postgres.service.nodePort }}
+      {{- end }}
+  selector:
+    app: {{ include "fullname" . }}-postgres
+
+{{- end }}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Code Snippets - BrainCell Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="bi bi-code-slash"></i>
+    Code Snippets
+  </h1>
+  <p class="page-subtitle">Reusable code examples and patterns</p>
+</div>
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-8">
+        <input type="text" class="form-control" placeholder="Search by title or language..." id="searchInput">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="languageFilter">
+          <option value="">All Languages</option>
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="sql">SQL</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="yaml">YAML</option>
+          <option value="json">JSON</option>
+          <option value="bash">Bash</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Items Grid -->
+{% if snippets %}
+<div class="items-container">
+  {% for snippet in snippets %}
+  <div class="item-card" data-language="{{ (snippet.language or 'text')|lower }}">
+    <div class="item-title">{{ snippet.title }}</div>
+    
+    <div class="item-meta">
+      <span class="item-tag">
+        <i class="bi bi-code"></i> {{ snippet.language or 'text' }}
+      </span>
+      {% if snippet.tags %}
+      {% for tag in snippet.tags %}
+      <span class="item-tag">
+        <i class="bi bi-tag"></i> {{ tag }}
+      </span>
+      {% endfor %}
+      {% endif %}
+    </div>
+    
+    {% if snippet.description %}
+    <div class="item-description">
+      {{ snippet.description }}
+    </div>
+    {% endif %}
+    
+    <!-- Code Preview -->
+    <div style="background: #f5f5f5; border-radius: 6px; margin: 1rem 0; padding: 1rem; overflow-x: auto; max-height: 200px; overflow-y: auto;">
+      <pre style="margin: 0; font-size: 12px; color: #333; font-family: 'Courier New', monospace;"><code>{{ snippet.code_content[:200] }}{% if snippet.code_content|length > 200 %}...{% endif %}</code></pre>
+    </div>
+    
+    <div class="item-meta" style="margin-top: 1rem;">
+      {% if snippet.file_path %}
+      <span class="item-tag" style="background: #fff3cd;">
+        <i class="bi bi-file-code"></i> {{ snippet.file_path }}
+      </span>
+      {% endif %}
+    </div>
+    
+    <div class="item-date">
+      <i class="bi bi-calendar"></i> {{ snippet.created_at.strftime('%B %d, %Y') }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total > limit %}
+<nav class="mt-4" aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    {% if skip > 0 %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/code-snippets?skip={{ skip - limit }}&limit={{ limit }}">Previous</a>
+    </li>
+    {% endif %}
+    
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ (skip // limit) + 1 }} of {{ ((total + limit - 1) // limit) }}</span>
+    </li>
+    
+    {% if skip + limit < total %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/code-snippets?skip={{ skip + limit }}&limit={{ limit }}">Next</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info" role="alert">
+  <i class="bi bi-info-circle"></i>
+  No code snippets found yet.
+</div>
+{% endif %}
+
+<script>
+document.getElementById('searchInput').addEventListener('keyup', filterCards);
+document.getElementById('languageFilter').addEventListener('change', filterCards);
+
+function filterCards() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const languageFilter = document.getElementById('languageFilter').value.toLowerCase();
+  
+  document.querySelectorAll('.item-card').forEach(card => {
+    const title = card.querySelector('.item-title').textContent.toLowerCase();
+    const language = card.dataset.language;
+    
+    const matchesSearch = title.includes(searchTerm);
+    const matchesLanguage = !languageFilter || language === languageFilter;
+    
+    card.style.display = (matchesSearch && matchesLanguage) ? '' : 'none';
+  });
+}
+</script>
+
+{% endblock %}

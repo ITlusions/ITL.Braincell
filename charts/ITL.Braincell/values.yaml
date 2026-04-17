@@ -1,0 +1,268 @@
+# ITL.Braincell umbrella chart values
+
+namespace: braincell
+
+cnpg:
+  enabled: true
+  clusterName: braincell-postgres
+  instances: 1
+  # Prefer specifying the full image (repository:tag) for CNPG clusters.
+  # Use CloudNativePG-provided Postgres image which matches operator user IDs.
+  # If `imageName` is empty, older `postgresqlVersion` will be used (deprecated).
+  # Use docker.io for local testing (ghcr may require auth); pin to a specific tag for determinism.
+  imageName: "docker.io/library/postgres:14"
+  postgresqlVersion: "14"
+  # Optional: UID/GID for the postgres user inside the image. Set these when
+  # using an image that requires a specific user id. If unset, the operator
+  # default will be used.
+  # Official docker library Postgres images use UID/GID 999 for the `postgres` user.
+  postgresUID: 999
+  postgresGID: 999
+  storage:
+    size: 10Gi
+    storageClass: "standard"
+
+weaviate:
+  # Imported upstream defaults from semitechnologies/weaviate chart
+  # (generated via `helm show values semitechnologies/weaviate`).
+  # You can override these values per-deployment here.
+  image:
+    # registry where weaviate image is stored
+    registry: docker.io
+    # Tag of weaviate image to deploy
+    # Note: We strongly recommend you overwrite this value in your own values.yaml.
+    # Otherwise a mere upgrade of the chart could lead to an unexpected upgrade
+    # of weaviate. In accordance with Infra-as-code, you should pin this value
+    # down and only change it if you explicitly want to upgrade the Weaviate
+    # version.
+    tag: 1.34.0
+    repo: semitechnologies/weaviate
+    # Image pull policy: https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+  # overwrite command and args if you want to run specific startup scripts, for
+  # example setting the nofile limit
+  command: ["/bin/weaviate"]
+  args:
+    - '--host'
+    - '0.0.0.0'
+    - '--port'
+    - '8080'
+    - '--scheme'
+    - 'http'
+    - '--config-file'
+    - '/weaviate-config/conf.yaml'
+    - --read-timeout=60s
+    - --write-timeout=60s
+
+  initContainers:
+    sysctlInitContainer:
+      enabled: true
+      sysctlVmMaxMapCount: 524288
+      image:
+        registry: docker.io
+        repo: alpine
+        tag: latest
+        pullPolicy: IfNotPresent
+    ensureFileOwnershipContainer:
+      enabled: false
+
+    extraInitContainers: {}
+
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  resources: {}
+
+  securityContext: {}
+  containerSecurityContext: {}
+
+  serviceAccountName: ""
+  clusterDomain: cluster.local.
+
+  storage:
+    name: "weaviate-data"
+    size: 32Gi
+    storageClassName: ""
+
+  service:
+    name: weaviate
+    ports:
+      - name: http
+        protocol: TCP
+        port: 80
+    type: LoadBalancer
+    loadBalancerSourceRanges: []
+    clusterIP: ""
+    annotations: {}
+
+  grpcService:
+    enabled: true
+    name: weaviate-grpc
+    ports:
+      - name: grpc
+        protocol: TCP
+        port: 50051
+    type: LoadBalancer
+    loadBalancerSourceRanges: []
+    clusterIP: ""
+    annotations: {}
+
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+
+  startupProbe:
+    enabled: false
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/ready
+        port: 8080
+    initialDelaySeconds: 300
+    periodSeconds: 60
+    failureThreshold: 50
+    successThreshold: 1
+    timeoutSeconds: 3
+
+  livenessProbe:
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/live
+        port: 8080
+    initialDelaySeconds: 900
+    periodSeconds: 10
+    failureThreshold: 30
+    successThreshold: 1
+    timeoutSeconds: 3
+
+  readinessProbe:
+    probeType: httpGet
+    probe:
+      httpGet:
+        path: /v1/.well-known/ready
+        port: 8080
+    initialDelaySeconds: 3
+    periodSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+    timeoutSeconds: 3
+
+  terminationGracePeriodSeconds: 600
+
+  authentication:
+    anonymous_access:
+      enabled: true
+    oidc:
+      enabled: false
+
+  authorization:
+    rbac:
+      enabled: false
+    admin_list:
+      enabled: false
+
+  query_defaults:
+    limit: 100
+  debug: false
+
+  env:
+    CLUSTER_GOSSIP_BIND_PORT: 7000
+    CLUSTER_DATA_BIND_PORT: 7001
+    RAFT_BOOTSTRAP_TIMEOUT: 600
+    GOGC: 100
+    PROMETHEUS_MONITORING_ENABLED: false
+    PROMETHEUS_MONITORING_GROUP: false
+    QUERY_MAXIMUM_RESULTS: 100000
+    TRACK_VECTOR_DIMENSIONS: false
+    REINDEX_VECTOR_DIMENSIONS_AT_STARTUP: false
+
+  envSecrets: {}
+
+  offload:
+    s3:
+      enabled: false
+      serviceAccountName: ""
+      envconfig:
+        OFFLOAD_S3_BUCKET: weaviate-offload
+      secrets: {}
+      envSecrets: {}
+
+    # gcs/azure sections omitted for brevity in this umbrella values file
+
+  modules: {}
+
+  custom_config_map:
+    enabled: false
+    name: 'custom-config'
+
+  runtime_overrides:
+    enabled: false
+    path: "/config/overrides.yaml"
+    load_interval: "2m"
+    values: {}
+
+  annotations: {}
+  extraVolumeMounts: {}
+  extraVolumes: {}
+  nodeSelector: {}
+  tolerations: {}
+  hostAliases: {}
+  affinity: {}
+  priorityClassName: ""
+  globalPriorityClassName: ""
+  podDisruptionBudgets: {}
+
+api:
+  enabled: true
+  image:
+    repository: itlbraincell/api
+    tag: latest
+  replicaCount: 1
+
+mcp:
+  enabled: true
+  image:
+    repository: itlbraincell/mcp
+    tag: latest
+  replicaCount: 1
+  port: 9506
+  ingress:
+    enabled: true
+    className: traefik
+    path: /mcp
+    pathType: Prefix
+
+traefik:
+  enabled: true
+  ingressClass:
+    enabled: true
+    isDefaultClass: true
+  ports:
+    web:
+      port: 80
+    websecure:
+      port: 443
+
+# Kubernetes-managed Postgres (translates docker-compose postgres service)
+postgres:
+  enabled: true
+  image:
+    repository: docker.io/library/postgres
+    tag: 15-alpine
+  database: braincell
+  user: braincell
+  # WARNING: for production, replace with a Kubernetes Secret and do not store plaintext passwords in values.
+  password: braincell_dev_password
+  port: 5432
+  storage:
+    size: 10Gi
+    storageClass: "standard"
+  service:
+    type: ClusterIP
+    # set a nodePort integer if you want a NodePort service for local testing
+    nodePort: null

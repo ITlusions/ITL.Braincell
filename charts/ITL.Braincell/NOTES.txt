@@ -1,0 +1,45 @@
+Thank you for installing the ITL.Braincell chart.
+
+To check resources:
+
+  kubectl get namespaces
+  kubectl -n {{ .Release.Namespace }} get pods,svc,ingress
+
+Services Deployed:
+  
+  - BrainCell API (REST): http://braincell-api:8080
+  - MCP Server (AI Integration): http://braincell-mcp:9506
+  {{- if .Values.mcp.ingress.enabled }}
+  - MCP Ingress (via Traefik): http://localhost{{ .Values.mcp.ingress.path }}
+  {{- end }}
+  - Weaviate Vector DB: http://weaviate:80
+  - PostgreSQL Database: braincell-itl-braincell-postgres:5432
+
+Port Forwarding (for local development):
+
+  # Access BrainCell API
+  kubectl port-forward -n {{ .Release.Namespace }} svc/braincell-api 8000:8080
+  # Then visit: http://localhost:8000
+
+  {{- if .Values.mcp.ingress.enabled }}
+  # Access MCP via Traefik
+  kubectl port-forward -n {{ .Release.Namespace }} svc/traefik 8080:80
+  # Then visit: http://localhost:8080{{ .Values.mcp.ingress.path }}
+  {{- else }}
+  # Access MCP directly
+  kubectl port-forward -n {{ .Release.Namespace }} svc/braincell-mcp 9506:{{ .Values.mcp.port }}
+  # Then visit: http://localhost:9506
+  {{- end }}
+
+  # Access Weaviate
+  kubectl port-forward -n {{ .Release.Namespace }} svc/weaviate 8080:80
+  # Then visit: http://localhost:8080
+
+Configuration:
+
+  If you enabled CNPG dependency, the CNPG operator must be present to reconcile the Cluster CR.
+  If you enabled the weaviate-operator dependency (local), it will reconcile the Weaviate CR defined by this chart.
+  {{- if .Values.traefik.enabled }}
+  
+  Traefik Ingress Controller is enabled and will manage ingress resources for the MCP server.
+  {{- end }}

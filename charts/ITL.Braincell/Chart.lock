@@ -1,0 +1,12 @@
+dependencies:
+- name: cloudnative-pg
+  repository: https://cloudnative-pg.github.io/charts
+  version: 0.27.1
+- name: weaviate
+  repository: https://weaviate.github.io/weaviate-helm
+  version: 17.7.0
+- name: traefik
+  repository: https://traefik.github.io/charts
+  version: 26.0.0
+digest: sha256:0dabc366e1b4d5b467b0467d51234367fd3c95439e9c45544613a2f3cfdcd309
+generated: "2026-02-19T06:30:33.5803602+01:00"

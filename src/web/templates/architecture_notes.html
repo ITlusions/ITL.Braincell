@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Architecture Notes - BrainCell Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="bi bi-diagram-3"></i>
+    Architecture Notes
+  </h1>
+  <p class="page-subtitle">System design and component documentation</p>
+</div>
+
+<!-- Search and Filter -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-md-8">
+        <input type="text" class="form-control" placeholder="Search by component or description..." id="searchInput">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="typeFilter">
+          <option value="">All Types</option>
+          <option value="general">General</option>
+          <option value="pattern">Pattern</option>
+          <option value="integration">Integration</option>
+          <option value="constraint">Constraint</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Items Grid -->
+{% if notes %}
+<div class="items-container">
+  {% for note in notes %}
+  <div class="item-card" data-type="{{ note.type }}">
+    <div class="item-title">{{ note.component }}</div>
+    
+    <div class="item-meta">
+      <span class="item-tag">
+        <i class="bi bi-diagram-3"></i> {{ note.type|capitalize }}
+      </span>
+      {% if note.tags %}
+      {% for tag in note.tags %}
+      <span class="item-tag">
+        <i class="bi bi-tag"></i> {{ tag }}
+      </span>
+      {% endfor %}
+      {% endif %}
+    </div>
+    
+    <div class="item-description">
+      {{ note.description }}
+    </div>
+    
+    <div class="item-date">
+      <i class="bi bi-calendar"></i> {{ note.created_at.strftime('%B %d, %Y') }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total > limit %}
+<nav class="mt-4" aria-label="Page navigation">
+  <ul class="pagination justify-content-center">
+    {% if skip > 0 %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/architecture-notes?skip={{ skip - limit }}&limit={{ limit }}">Previous</a>
+    </li>
+    {% endif %}
+    
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ (skip // limit) + 1 }} of {{ ((total + limit - 1) // limit) }}</span>
+    </li>
+    
+    {% if skip + limit < total %}
+    <li class="page-item">
+      <a class="page-link" href="/dashboard/architecture-notes?skip={{ skip + limit }}&limit={{ limit }}">Next</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info" role="alert">
+  <i class="bi bi-info-circle"></i>
+  No architecture notes found yet.
+</div>
+{% endif %}
+
+<script>
+document.getElementById('searchInput').addEventListener('keyup', filterCards);
+document.getElementById('typeFilter').addEventListener('change', filterCards);
+
+function filterCards() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const typeFilter = document.getElementById('typeFilter').value;
+  
+  document.querySelectorAll('.item-card').forEach(card => {
+    const component = card.querySelector('.item-title').textContent.toLowerCase();
+    const description = card.querySelector('.item-description').textContent.toLowerCase();
+    const type = card.dataset.type;
+    
+    const matchesSearch = component.includes(searchTerm) || description.includes(searchTerm);
+    const matchesType = !typeFilter || type === typeFilter;
+    
+    card.style.display = (matchesSearch && matchesType) ? '' : 'none';
+  });
+}
+</script>
+
+{% endblock %}
