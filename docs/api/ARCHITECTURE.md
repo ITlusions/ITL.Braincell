@@ -24,7 +24,7 @@ graph TD
         RD[("**Redis**<br/>Port 9503<br/>Cache")]
     end
 
-    PGA["**pgAdmin**<br/>r/>Port 9505"]
+    PGA["**pgAdmin**<br/>Port 9505"]
 
     API --> PG
     API --> WV
@@ -111,7 +111,7 @@ graph TD
     B["**Dependencies Layer**<br/>get_db() → SQLAlchemy Session<br/>get_weaviate() → WeaviateService"]
     C["**Service Layer** — Business Logic<br/>weaviate_service.py<br/>index · update · delete · search"]
     D["**Core Layer** — Data Structures<br/>models.py — SQLAlchemy ORM · 8 entity types<br/>schemas.py — Pydantic validation"]
-    E["**External Services**<br/>r/>PostgreSQL · Weaviate · Redis"]
+    E["**External Services**<br/>PostgreSQL · Weaviate · Redis"]
 
     A <-->|"Depends()"| B
     B <--> C
@@ -206,7 +206,7 @@ graph LR
         DD["**DesignDecision**<br/>decision · rationale · status"]
         AN["**ArchitectureNote**<br/>component · description · type"]
         FD["**FileDiscussed**<br/>file_path · description · language"]
-        CS["**CodeSnippet**<br/>r/>title · code_content · language"]
+        CS["**CodeSnippet**<br/>title · code_content · language"]
     end
 
     style DD fill:#1565C0,color:#fff
@@ -231,7 +231,7 @@ flowchart TD
     D -->|No| E(["Return 4xx / 5xx"])
     D -->|Yes| F["weaviate_service<br/>index_conversation()"]
     F --> G{"Weaviate sync OK?"}
-    G -->|No| H["Log warning<br/>r/>(non-blocking)"]
+    G -->|No| H["Log warning<br/>(non-blocking)"]
     G -->|Yes| I(["Return 201 ConversationResponse"])
     H --> I
 

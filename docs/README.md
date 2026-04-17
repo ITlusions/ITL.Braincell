@@ -64,10 +64,4 @@ docs/
 └── README.md
 ```
 
-**Totaal**: 43 documentatie bestanden, georganiseerd in 8 categorieën
 
-## 🔄 Laatste Update
-
-Documentatie georganiseerd op: April 17, 2026
-
-Alle .md bestanden zijn verplaatst van root naar gestructureerde subdirectories voor betere organisatie en navigatie.

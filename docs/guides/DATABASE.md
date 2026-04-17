@@ -96,19 +96,19 @@ python verify_database.py
 Expected output:
 
 ```
-  ✓ Connected to PostgreSQL
+  [OK] Connected to PostgreSQL
     - conversations: 5 rows
     - design_decisions: 6 rows
     - architecture_notes: 6 rows
     - files_discussed: 6 rows
     - code_snippets: 5 rows
-  ✅ Database contains 28 total records
+  [OK] Database contains 28 total records
 
-  ✓ Connected to Weaviate
-    - Conversation: ✓ has data
-    - Decision: ✓ has data
-    - CodeSnippet: ✓ has data
-  ✅ Weaviate is configured and ready
+  [OK] Connected to Weaviate
+    - Conversation: has data
+    - Decision: has data
+    - CodeSnippet: has data
+  [OK] Weaviate is configured and ready
 ```
 
 ---

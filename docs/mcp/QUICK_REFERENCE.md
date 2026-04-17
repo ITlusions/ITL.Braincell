@@ -80,12 +80,27 @@ curl -X POST http://localhost:9506/tools/list_memories \
 
 ## Data Flow
 
-```
-Agent -> MCP Server (port 9506) -> PostgreSQL (SQL ILIKE search)
+```mermaid
+graph LR
+    AG["Agent<br/>GitHub Copilot · Claude Desktop"]
+    SRV["MCP Server<br/>Port 9506"]
+    PG[("PostgreSQL<br/>SQL ILIKE search")]
+    API["REST API<br/>Port 9504"]
+    WV[("Weaviate<br/>Semantic search")]
 
-Note: Weaviate (semantic vector search) is used by the REST API (port 9504),
-not by the MCP server.
+    AG -->|"MCP Protocol"| SRV
+    SRV -->|"SQL query"| PG
+    AG -->|"HTTP"| API
+    API -->|"vector search"| WV
+
+    style AG fill:#1565C0,color:#fff
+    style SRV fill:#2E7D32,color:#fff
+    style PG fill:#37474F,color:#fff
+    style API fill:#E65100,color:#fff
+    style WV fill:#6A1B9A,color:#fff
 ```
+
+> The MCP server uses SQL ILIKE (PostgreSQL). Weaviate semantic search is only available through the REST API on port 9504.
 
 ## Environment
 
