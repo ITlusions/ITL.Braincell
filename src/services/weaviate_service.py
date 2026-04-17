@@ -173,6 +173,17 @@ class WeaviateService:
                     {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
                 ],
             },
+            "ResearchQuestion": {
+                "description": "End-user questions flagged for research follow-up",
+                "properties": [
+                    {"name": "question", "description": "The question text", "dataType": ["text"]},
+                    {"name": "status", "description": "Lifecycle status", "dataType": ["string"]},
+                    {"name": "priority", "description": "Priority level", "dataType": ["string"]},
+                    {"name": "context", "description": "Surrounding context", "dataType": ["text"]},
+                    {"name": "source", "description": "How it was captured", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                ],
+            },
             "Job": {
                 "description": "Job postings and freelance opportunities",
                 "properties": [
@@ -1210,6 +1221,69 @@ class WeaviateService:
             return notes
         except Exception as e:
             logger.error(f"Note search failed: {e}")
+            return []
+
+    def index_research_question(
+        self,
+        embedding_id: str,
+        question: str,
+        status: str = "pending",
+        priority: str = "medium",
+        context: Optional[str] = None,
+        source: Optional[str] = None,
+    ) -> bool:
+        """Index a research question in Weaviate."""
+        if not self.client:
+            logger.warning("Weaviate client not available, skipping research_question index")
+            return False
+        try:
+            properties = {
+                "question": question,
+                "status": status,
+                "priority": priority,
+                "context": context or "",
+                "source": source or "",
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("ResearchQuestion").data.insert(
+                    properties=properties, uuid=embedding_id
+                )
+            except Exception as ins_err:
+                if "already exists" in str(ins_err):
+                    self.client.collections.get("ResearchQuestion").data.update(
+                        uuid=embedding_id, properties=properties
+                    )
+                else:
+                    raise
+            logger.info(f"✓ Indexed research question: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index research question {embedding_id}: {e}")
+            return False
+
+    def search_research_questions(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Search research questions using semantic similarity."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("ResearchQuestion").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            hits = []
+            for result in results.objects:
+                obj = {"uuid": result.uuid, **result.properties}
+                if result.metadata:
+                    obj["distance"] = result.metadata.distance
+                hits.append(obj)
+            logger.info(f"✓ Found {len(hits)} research questions matching query")
+            return hits
+        except Exception as e:
+            logger.error(f"Research question search failed: {e}")
             return []
 
     def health_check(self) -> bool:

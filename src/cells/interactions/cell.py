@@ -124,6 +124,39 @@ class InteractionsCell(MemoryCell):
                     )
                 except Exception:
                     pass
+                # Auto-detect research questions in user messages
+                if role == "user":
+                    try:
+                        from src.cells.research_questions.cell import _is_question
+                        if _is_question(content):
+                            from src.cells.research_questions.model import ResearchQuestion as _RQ
+                            from src.services.weaviate_service import get_weaviate_service as _gwvs2
+                            _rq = _RQ(
+                                question=content.strip(),
+                                status="pending",
+                                priority="medium",
+                                source="auto_detected",
+                                source_interaction_id=interaction.id,
+                            )
+                            db2 = SessionLocal()
+                            try:
+                                db2.add(_rq)
+                                db2.commit()
+                                db2.refresh(_rq)
+                                try:
+                                    _gwvs2().index_research_question(
+                                        str(_rq.id),
+                                        question=_rq.question,
+                                        status=_rq.status,
+                                        priority=_rq.priority,
+                                        source=_rq.source,
+                                    )
+                                except Exception:
+                                    pass
+                            finally:
+                                db2.close()
+                    except Exception:
+                        pass
                 return {"success": True, "id": str(interaction.id), "retention_days": retention.retention_days, "retain_reason": retention.reason}
             finally:
                 db.close()
