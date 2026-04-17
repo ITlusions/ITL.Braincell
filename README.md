@@ -120,7 +120,7 @@ ENVIRONMENT=development
 ### Create a Conversation
 
 ```bash
-curl -X POST http://localhost:8000/api/conversations \
+curl -X POST http://localhost:9504/api/conversations \
   -H "Content-Type: application/json" \
   -d '{
     "session_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -133,7 +133,7 @@ curl -X POST http://localhost:8000/api/conversations \
 ### Create a Design Decision
 
 ```bash
-curl -X POST http://localhost:8000/api/decisions \
+curl -X POST http://localhost:9504/api/decisions \
   -H "Content-Type: application/json" \
   -d '{
     "decision": "Use Weaviate for semantic search",
@@ -146,7 +146,7 @@ curl -X POST http://localhost:8000/api/decisions \
 ### Search Conversations
 
 ```bash
-curl -X POST http://localhost:8000/api/search/conversations \
+curl -X POST http://localhost:9504/api/search/conversations \
   -H "Content-Type: application/json" \
   -d '{
     "query": "memory system architecture",
@@ -158,7 +158,7 @@ curl -X POST http://localhost:8000/api/search/conversations \
 ### Create Code Snippet
 
 ```bash
-curl -X POST http://localhost:8000/api/snippets \
+curl -X POST http://localhost:9504/api/snippets \
   -H "Content-Type: application/json" \
   -d '{
     "title": "FastAPI Health Check",
@@ -259,14 +259,14 @@ docker-compose down -v && docker-compose build --no-cache
 
 ## Features
 
-✅ **Structured Data** - PostgreSQL for conversations, decisions, notes
-✅ **Vector Search** - Weaviate for semantic similarity search
-✅ **JSON Storage** - JSONB in PostgreSQL for flexible data
-✅ **Sessions** - Track conversation sessions and context
-✅ **Caching** - Redis for performance
-✅ **Full-Text Search** - PostgreSQL built-in FTS
-✅ **API Docs** - Auto-generated Swagger UI
-✅ **Docker Ready** - Complete docker-compose setup
+- **Structured Data** - PostgreSQL for conversations, decisions, notes
+- **Vector Search** - Weaviate for semantic similarity search
+- **JSON Storage** - JSONB in PostgreSQL for flexible data
+- **Sessions** - Track conversation sessions and context
+- **Caching** - Redis for performance
+- **Full-Text Search** - PostgreSQL built-in FTS
+- **API Docs** - Auto-generated Swagger UI
+- **Docker Ready** - Complete docker-compose setup
 
 ## Integration with Copilot
 
@@ -288,30 +288,28 @@ The BrainCell API can be integrated with Copilot via:
 - [ ] Audit logging
 - [ ] Backup and recovery
 
-## 📚 Documentation
+## Documentation
 
-Alle technische documentatie is georganiseerd in de [`docs/`](./docs/) directory:
+All technical documentation is in the [`docs/`](./docs/) directory.
 
 ### Quick Links
-- 📖 **[Complete Documentation Index](./docs/README.md)** - Overzicht van alle documentatie
-- 🚀 **[Quick Start Guide](./docs/guides/QUICK_START.md)** - Begin hier als je nieuw bent
-- 🎯 **[Kubernetes Production Guide](./docs/deployment/KUBERNETES_PRODUCTION_GUIDE.md)** - Deploy naar productie
-- 🔧 **[MCP Server Guide](./docs/mcp/MCP_SERVER_GUIDE.md)** - MCP protocol implementatie
-- 📘 **[API Endpoints Reference](./docs/api/API_ENDPOINTS.md)** - Complete API documentatie
-- 🔍 **[Troubleshooting](./docs/guides/TROUBLESHOOTING.md)** - Probleemoplossing
+
+- [Documentation Index](./docs/README.md)
+- [Quick Start Guide](./docs/guides/QUICK_START.md)
+- [Kubernetes Deployment](./docs/deployment/KUBERNETES.md)
+- [MCP Server Guide](./docs/mcp/GUIDE.md)
+- [API Endpoints Reference](./docs/api/ENDPOINTS.md)
+- [Database Guide](./docs/guides/DATABASE.md)
 
 ### Documentation Categories
 
-| Categorie | Beschrijving | Link |
-|-----------|--------------|------|
-| 📘 **API & Architecture** | API endpoints, architectuur diagrammen, service structuur | [docs/api/](./docs/api/) |
-| 🚀 **Deployment** | Kubernetes, Helm charts, productie deployment | [docs/deployment/](./docs/deployment/) |
-| 📖 **Guides** | Quick starts, troubleshooting, database setup | [docs/guides/](./docs/guides/) |
-| 🔧 **MCP Protocol** | Model Context Protocol implementatie en integratie | [docs/mcp/](./docs/mcp/) |
-| 🔬 **Testing** | Test procedures en framework documentatie | [docs/testing/](./docs/testing/) |
-| 🔐 **Security** | Security assessment en POC exploits | [docs/security/](./docs/security/) |
-| 🔄 **Migration** | Migration guides en update procedures | [docs/migration/](./docs/migration/) |
-| 🧹 **Maintenance** | Cleanup procedures en project management | [docs/maintenance/](./docs/maintenance/) |
+| Category | Description | Link |
+|----------|-------------|------|
+| **API & Architecture** | Endpoints, architecture diagrams, service structure | [docs/api/](./docs/api/) |
+| **Deployment** | Docker, Kubernetes, Helm charts | [docs/deployment/](./docs/deployment/) |
+| **Guides** | Quick starts, database setup | [docs/guides/](./docs/guides/) |
+| **MCP Protocol** | Model Context Protocol integration | [docs/mcp/](./docs/mcp/) |
+| **Testing** | Test procedures and framework | [docs/testing/](./docs/testing/) |
 
 ## License
 
