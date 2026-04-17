@@ -62,7 +62,33 @@ class WeaviateService:
                 self.client = None
         
         self._ensure_schema()
+        self._ensure_archive_properties()
     
+    def _ensure_archive_properties(self):
+        """Add archived/archived_at properties to all memory collections if missing."""
+        if not self.client:
+            return
+        archive_collections = [
+            "Conversation", "Interaction", "Decision", "CodeSnippet",
+            "ArchitectureNote", "FileDiscussed", "MemorySession", "Note",
+        ]
+        try:
+            from weaviate.classes.config import Property, DataType
+            for name in archive_collections:
+                try:
+                    col = self.client.collections.get(name)
+                    existing = {p.name for p in col.config.get().properties}
+                    if "archived" not in existing:
+                        col.config.add_property(Property(name="archived", data_type=DataType.BOOL))
+                        logger.info(f"✓ Added 'archived' property to {name}")
+                    if "archived_at" not in existing:
+                        col.config.add_property(Property(name="archived_at", data_type=DataType.TEXT))
+                        logger.info(f"✓ Added 'archived_at' property to {name}")
+                except Exception as e:
+                    logger.warning(f"Could not ensure archive properties for {name}: {e}")
+        except Exception as e:
+            logger.error(f"_ensure_archive_properties failed: {e}")
+
     def _ensure_schema(self):
         """Ensure required schema classes exist in Weaviate using v4 SDK"""
         if not self.client:
@@ -134,6 +160,16 @@ class WeaviateService:
                     {"name": "session_name", "description": "Session name", "dataType": ["text"]},
                     {"name": "summary", "description": "Session summary", "dataType": ["text"]},
                     {"name": "status", "description": "Session status", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                ],
+            },
+            "Note": {
+                "description": "Free-form notes and observations",
+                "properties": [
+                    {"name": "title", "description": "Note title", "dataType": ["text"]},
+                    {"name": "content", "description": "Note body text", "dataType": ["text"]},
+                    {"name": "tags", "description": "Tags", "dataType": ["string[]"]},
+                    {"name": "source", "description": "Source (agent/user)", "dataType": ["string"]},
                     {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
                 ],
             },
@@ -1103,6 +1139,79 @@ class WeaviateService:
             logger.error(f"Failed to delete job {job_id}: {e}")
             return False
     
+    def archive_object(self, collection_name: str, embedding_id: str) -> bool:
+        """Mark a Weaviate object as archived (called when PostgreSQL record is deleted)."""
+        if not self.client:
+            return False
+        from datetime import datetime, timezone
+        try:
+            self.client.collections.get(collection_name).data.update(
+                uuid=embedding_id,
+                properties={"archived": True, "archived_at": datetime.now(timezone.utc).isoformat()},
+            )
+            logger.info(f"✓ Archived {collection_name}: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to archive {collection_name}/{embedding_id}: {e}")
+            return False
+
+    def index_note(
+        self,
+        embedding_id: str,
+        title: str,
+        content: str,
+        tags: Optional[List[str]] = None,
+        source: Optional[str] = None,
+    ) -> bool:
+        """Index a free-form note in Weaviate."""
+        if not self.client:
+            logger.warning("Weaviate client not available, skipping note index")
+            return False
+        try:
+            properties = {
+                "title": title,
+                "content": content,
+                "tags": tags or [],
+                "source": source or "",
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("Note").data.insert(properties=properties, uuid=embedding_id)
+            except Exception as ins_err:
+                if "already exists" in str(ins_err):
+                    self.client.collections.get("Note").data.update(uuid=embedding_id, properties=properties)
+                else:
+                    raise
+            logger.info(f"✓ Indexed note: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index note {embedding_id}: {e}")
+            return False
+
+    def search_notes(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Search free-form notes using semantic similarity."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("Note").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            notes = []
+            for result in results.objects:
+                obj = {"uuid": result.uuid, **result.properties}
+                if result.metadata:
+                    obj["distance"] = result.metadata.distance
+                notes.append(obj)
+            logger.info(f"✓ Found {len(notes)} notes matching query")
+            return notes
+        except Exception as e:
+            logger.error(f"Note search failed: {e}")
+            return []
+
     def health_check(self) -> bool:
         """Check if Weaviate is healthy"""
         if not self.client:

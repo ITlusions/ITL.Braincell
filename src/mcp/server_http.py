@@ -24,9 +24,9 @@ import uvicorn
 
 from src.core.config import get_settings
 from src.core.database import SessionLocal, init_db
-from src.core.models import (
-    DesignDecision, CodeSnippet, ArchitectureNote
-)
+from src.cells.decisions.model import DesignDecision
+from src.cells.snippets.model import CodeSnippet
+from src.cells.architecture_notes.model import ArchitectureNote
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,9 +42,18 @@ init_db()
 # without requiring session affinity or shared state
 mcp = FastMCP("braincell", stateless_http=True)
 
+# Auto-register per-cell MCP tools via the MemoryCell plugin system.
+# Any cell that implements register_mcp_tools() is discovered and registered
+# here — adding a new cell automatically exposes its tools without touching
+# this file.
+from src.cells import discover_cells as _discover_cells
+
+for _cell in _discover_cells():
+    _cell.register_mcp_tools(mcp)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tool Implementations - Using @mcp.tool() decorators
+# Cross-cell aggregate tools (span multiple cells)
 # ─────────────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
@@ -173,140 +182,6 @@ async def get_relevant_context(
             
     except Exception as e:
         logger.error(f"Get context failed: {e}", exc_info=True)
-        return {"error": str(e)}
-
-
-@mcp.tool()
-async def save_decision(
-    decision: str,
-    rationale: str | None = None,
-    impact: str | None = None
-) -> dict:
-    """
-    Save a design decision to memory for future reference.
-    
-    Stores architectural decisions with their rationale and expected impact
-    for later retrieval and learning.
-    """
-    try:
-        if not decision:
-            return {"error": "decision is required"}
-        
-        db = SessionLocal()
-        
-        try:
-            design_decision = DesignDecision(
-                decision=str(decision),
-                rationale=str(rationale) if rationale else None,
-                impact=str(impact) if impact else None,
-                status="active"
-            )
-            
-            db.add(design_decision)
-            db.commit()
-            db.refresh(design_decision)
-            
-            return {
-                "success": True,
-                "id": str(design_decision.id),
-                "decision": str(decision)
-            }
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"Save decision failed: {e}", exc_info=True)
-        return {"error": str(e)}
-
-
-@mcp.tool()
-async def save_code_snippet(
-    title: str,
-    code_content: str,
-    language: str | None = None,
-    description: str | None = None,
-    tags: list[str] | None = None
-) -> dict:
-    """
-    Save a reusable code pattern to memory.
-    
-    Stores code snippets with metadata for easy retrieval and reuse across
-    projects. Supports tagging for better organization.
-    """
-    try:
-        if not title or not code_content:
-            return {"error": "title and code_content are required"}
-        
-        db = SessionLocal()
-        
-        try:
-            snippet = CodeSnippet(
-                title=str(title),
-                code_content=str(code_content),
-                language=str(language) if language else None,
-                description=str(description) if description else None,
-                tags=[str(t) for t in (tags if isinstance(tags, (list, tuple)) else [])]
-            )
-            
-            db.add(snippet)
-            db.commit()
-            db.refresh(snippet)
-            
-            return {
-                "success": True,
-                "id": str(snippet.id),
-                "title": str(title)
-            }
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"Save snippet failed: {e}", exc_info=True)
-        return {"error": str(e)}
-
-
-@mcp.tool()
-async def save_architecture_note(
-    component: str,
-    description: str,
-    note_type: str | None = None,
-    tags: list[str] | None = None
-) -> dict:
-    """
-    Save architecture or design notes to memory.
-    
-    Documents component designs, patterns, and architectural decisions
-    for reference and knowledge sharing.
-    """
-    try:
-        if not component or not description:
-            return {"error": "component and description are required"}
-        
-        db = SessionLocal()
-        
-        try:
-            arch_note = ArchitectureNote(
-                component=str(component),
-                description=str(description),
-                type=str(note_type) if note_type else "general",
-                tags=[str(t) for t in (tags if isinstance(tags, (list, tuple)) else [])],
-                status="active"
-            )
-            
-            db.add(arch_note)
-            db.commit()
-            db.refresh(arch_note)
-            
-            return {
-                "success": True,
-                "id": str(arch_note.id),
-                "component": str(component)
-            }
-        finally:
-            db.close()
-            
-    except Exception as e:
-        logger.error(f"Save architecture note failed: {e}", exc_info=True)
         return {"error": str(e)}
 
 

@@ -1,30 +1,26 @@
-"""Route modules for all entity types"""
+"""Route modules — entity routes are auto-discovered via MemoryCell plugins."""
+import logging
+
 from fastapi import APIRouter
 
-# Import all route modules
-from . import conversations, interactions, decisions, architecture_notes, files, snippets, sessions, search, health, admin, jobs
+from . import admin, health, search
+from src.cells import discover_cells
+
+logger = logging.getLogger(__name__)
+
 
 def create_routes() -> APIRouter:
-    """Create and register all route modules"""
+    """Create and register all route modules, including auto-discovered cells."""
     router = APIRouter()
-    
-    # Include health check
+
+    # Core infrastructure routes
     router.include_router(health.router, tags=["health"])
-    
-    # Include entity routes
-    router.include_router(conversations.router, prefix="/api/conversations", tags=["conversations"])
-    router.include_router(interactions.router, prefix="/api/interactions", tags=["interactions"])
-    router.include_router(decisions.router, prefix="/api/decisions", tags=["decisions"])
-    router.include_router(architecture_notes.router, prefix="/api/architecture-notes", tags=["architecture-notes"])
-    router.include_router(files.router, prefix="/api/files", tags=["files"])
-    router.include_router(snippets.router, prefix="/api/snippets", tags=["snippets"])
-    router.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
-    router.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
-    
-    # Include search routes
     router.include_router(search.router, prefix="/api/search", tags=["search"])
-    
-    # Include admin routes
     router.include_router(admin.router, tags=["admin"])
-    
+
+    # Auto-discovered MemoryCell routes
+    for cell in discover_cells():
+        router.include_router(cell.get_router(), prefix=cell.prefix, tags=cell.tags)
+        logger.info("Registered cell: %s -> %s", cell.name, cell.prefix)
+
     return router

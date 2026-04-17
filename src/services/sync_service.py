@@ -8,10 +8,13 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from src.core.database import SessionLocal
-from src.core.models import (
-    Conversation, Interaction, DesignDecision, ArchitectureNote,
-    FileDiscussed, CodeSnippet, MemorySession
-)
+from src.cells.conversations.model import Conversation
+from src.cells.interactions.model import Interaction
+from src.cells.decisions.model import DesignDecision
+from src.cells.architecture_notes.model import ArchitectureNote
+from src.cells.files_discussed.model import FileDiscussed
+from src.cells.snippets.model import CodeSnippet
+from src.cells.sessions.model import MemorySession
 from src.services.weaviate_service import get_weaviate_service
 
 logger = logging.getLogger(__name__)

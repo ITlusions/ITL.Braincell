@@ -12,10 +12,12 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from src.core.database import get_db
-from src.core.models import (
-    Conversation, DesignDecision, ArchitectureNote, 
-    CodeSnippet, Interaction, FileDiscussed
-)
+from src.cells.conversations.model import Conversation
+from src.cells.decisions.model import DesignDecision
+from src.cells.architecture_notes.model import ArchitectureNote
+from src.cells.snippets.model import CodeSnippet
+from src.cells.interactions.model import Interaction
+from src.cells.files_discussed.model import FileDiscussed
 
 # Setup
 web_dir = Path(__file__).parent
