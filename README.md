@@ -4,24 +4,41 @@ A centralized memory system for Copilot that combines PostgreSQL, Weaviate vecto
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────┐
-│     BrainCell FastAPI Application       │
-├─────────────────────────────────────────┤
-│ • Conversations & Sessions              │
-│ • Design Decisions                      │
-│ • Architecture Notes                    │
-│ • Code Snippets                         │
-│ • Context Snapshots                     │
-└──────────────┬──────────────────────────┘
-               │
-    ┌──────────┼──────────┬──────────┐
-    ▼          ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐ ┌──────┐
-│PG SQL  │ │Weaviate│ │ Redis  │ │P...  │
-│        │ │Vector  │ │ Cache  │ │Admin │
-│Structs │ │Semantic│ │        │ │      │
-└────────┘ └────────┘ └────────┘ └──────┘
+```mermaid
+graph TD
+    C(["Clients<br/>Copilot · Claude · Users"])
+
+    C -->|"HTTP REST"| API
+    C -->|"HTTP browser"| DASH
+    C -->|"MCP Protocol"| MCP
+
+    subgraph app["Application Layer"]
+        API["REST API<br/>Port 9504 · FastAPI"]
+        MCP["MCP Server<br/>Port 9506 · FastMCP"]
+        DASH["Dashboard<br/>Port 9507 · Web UI"]
+    end
+
+    subgraph data["Data Layer"]
+        PG[("PostgreSQL<br/>Port 9500<br/>Source of truth")]
+        WV[("Weaviate<br/>Port 9501 / 9502<br/>Semantic search")]
+        RD[("Redis<br/>Port 9503<br/>Cache")]
+    end
+
+    PGA["pgAdmin<br/>Port 9505"]
+
+    API --> PG
+    API --> WV
+    API --> RD
+    MCP --> PG
+    DASH --> PG
+    PGA -.->|"admin only"| PG
+
+    style API fill:#1565C0,color:#fff
+    style MCP fill:#2E7D32,color:#fff
+    style DASH fill:#E65100,color:#fff
+    style PG fill:#37474F,color:#fff
+    style WV fill:#6A1B9A,color:#fff
+    style RD fill:#B71C1C,color:#fff
 ```
 
 ## Tech Stack
@@ -310,8 +327,6 @@ All technical documentation is in the [`docs/`](./docs/) directory.
 | **Guides** | Quick starts, database setup | [docs/guides/](./docs/guides/) |
 | **MCP Protocol** | Model Context Protocol integration | [docs/mcp/](./docs/mcp/) |
 | **Testing** | Test procedures and framework | [docs/testing/](./docs/testing/) |
-
-## License
 
 MIT
 
