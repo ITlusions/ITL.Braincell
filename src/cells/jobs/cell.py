@@ -34,6 +34,10 @@ class JobsCell(MemoryCell):
         from src.cells.snippets.model import CodeSnippet
         from src.cells.files_discussed.model import FileDiscussed
         from src.cells.sessions.model import MemorySession
+        from src.cells.threats.model import ThreatActor
+        from src.cells.incidents.model import SecurityIncident
+        from src.cells.iocs.model import IOC
+        from src.cells.intel_reports.model import IntelReport
 
         CELL_MAP = [
             ("Interaction", Interaction),
@@ -44,6 +48,10 @@ class JobsCell(MemoryCell):
             ("CodeSnippet", CodeSnippet),
             ("FileDiscussed", FileDiscussed),
             ("MemorySession", MemorySession),
+            ("ThreatActor", ThreatActor),
+            ("SecurityIncident", SecurityIncident),
+            ("IOC", IOC),
+            ("IntelReport", IntelReport),
         ]
 
         @mcp.tool()

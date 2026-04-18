@@ -202,6 +202,70 @@ class WeaviateService:
                     {"name": "tags", "description": "Job tags and keywords", "dataType": ["string[]"]},
                 ],
             },
+            # --- National Security Intelligence Collections ---
+            "ThreatActor": {
+                "description": "Threat actors — APTs, criminal groups, state-sponsored actors",
+                "properties": [
+                    {"name": "name", "description": "Threat actor name", "dataType": ["text"]},
+                    {"name": "aliases", "description": "Known aliases", "dataType": ["text"]},
+                    {"name": "classification", "description": "Actor type (apt/criminal/hacktivist/state-sponsored)", "dataType": ["string"]},
+                    {"name": "origin_country", "description": "Country of origin", "dataType": ["string"]},
+                    {"name": "motivation", "description": "Motivation (espionage/financial/disruption/ideological)", "dataType": ["string"]},
+                    {"name": "sophistication", "description": "Sophistication level", "dataType": ["string"]},
+                    {"name": "ttps", "description": "MITRE ATT&CK technique IDs", "dataType": ["text"]},
+                    {"name": "status", "description": "Active/inactive/unknown", "dataType": ["string"]},
+                    {"name": "stix_id", "description": "STIX 2.1 identity reference", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "SecurityIncident": {
+                "description": "Security incidents — breaches, attacks, events under investigation",
+                "properties": [
+                    {"name": "title", "description": "Incident title", "dataType": ["text"]},
+                    {"name": "description", "description": "Incident description", "dataType": ["text"]},
+                    {"name": "severity", "description": "Severity level", "dataType": ["string"]},
+                    {"name": "status", "description": "Incident status", "dataType": ["string"]},
+                    {"name": "attack_vector", "description": "Initial attack vector", "dataType": ["string"]},
+                    {"name": "threat_actor_name", "description": "Attributed threat actor", "dataType": ["string"]},
+                    {"name": "mitre_tactics", "description": "MITRE ATT&CK tactic IDs", "dataType": ["text"]},
+                    {"name": "classification_level", "description": "Classification marking", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "IOC": {
+                "description": "Indicators of Compromise — IPs, domains, hashes, CVEs",
+                "properties": [
+                    {"name": "ioc_type", "description": "IOC type (ip/domain/hash_md5/cve/...)", "dataType": ["string"]},
+                    {"name": "value", "description": "IOC value", "dataType": ["text"]},
+                    {"name": "severity", "description": "Severity level", "dataType": ["string"]},
+                    {"name": "status", "description": "Status (active/expired/false_positive)", "dataType": ["string"]},
+                    {"name": "source", "description": "IOC source", "dataType": ["string"]},
+                    {"name": "context", "description": "Context description", "dataType": ["text"]},
+                    {"name": "tags", "description": "Tags", "dataType": ["string[]"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "IntelReport": {
+                "description": "Threat intelligence reports — TLP-marked analysis and briefings",
+                "properties": [
+                    {"name": "title", "description": "Report title", "dataType": ["text"]},
+                    {"name": "summary", "description": "Executive summary", "dataType": ["text"]},
+                    {"name": "content", "description": "Full report body", "dataType": ["text"]},
+                    {"name": "classification_level", "description": "Classification marking", "dataType": ["string"]},
+                    {"name": "tlp_level", "description": "TLP level (WHITE/GREEN/AMBER/RED)", "dataType": ["string"]},
+                    {"name": "source", "description": "Intelligence source", "dataType": ["string"]},
+                    {"name": "analyst", "description": "Author/analyst", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
         }
         
         try:
@@ -1284,6 +1348,188 @@ class WeaviateService:
             return hits
         except Exception as e:
             logger.error(f"Research question search failed: {e}")
+            return []
+
+    # ------------------------------------------------------------------ #
+    #  National Security Intelligence — ThreatActor                       #
+    # ------------------------------------------------------------------ #
+
+    def index_threat_actor(
+        self,
+        embedding_id: str,
+        name: str,
+        classification: Optional[str] = None,
+        motivation: Optional[str] = None,
+        ttps: Optional[List[str]] = None,
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "name": name,
+                "classification": classification or "",
+                "motivation": motivation or "",
+                "ttps": " ".join(ttps or []),
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("ThreatActor").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("ThreatActor").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            logger.info(f"✓ Indexed threat actor: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index threat actor {embedding_id}: {e}")
+            return False
+
+    def search_threat_actors(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("ThreatActor").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Threat actor search failed: {e}")
+            return []
+
+    # ------------------------------------------------------------------ #
+    #  National Security Intelligence — SecurityIncident                   #
+    # ------------------------------------------------------------------ #
+
+    def index_incident(
+        self,
+        embedding_id: str,
+        title: str,
+        description: Optional[str] = None,
+        severity: Optional[str] = None,
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "description": description or "",
+                "severity": severity or "medium",
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("SecurityIncident").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("SecurityIncident").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            logger.info(f"✓ Indexed security incident: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index security incident {embedding_id}: {e}")
+            return False
+
+    def search_incidents(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("SecurityIncident").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Incident search failed: {e}")
+            return []
+
+    # ------------------------------------------------------------------ #
+    #  National Security Intelligence — IOC                                #
+    # ------------------------------------------------------------------ #
+
+    def index_ioc(
+        self,
+        embedding_id: str,
+        ioc_type: str,
+        value: str,
+        context: Optional[str] = None,
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "ioc_type": ioc_type,
+                "value": value,
+                "context": context or "",
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("IOC").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("IOC").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            logger.info(f"✓ Indexed IOC: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index IOC {embedding_id}: {e}")
+            return False
+
+    def search_iocs(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("IOC").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"IOC search failed: {e}")
+            return []
+
+    # ------------------------------------------------------------------ #
+    #  National Security Intelligence — IntelReport                        #
+    # ------------------------------------------------------------------ #
+
+    def index_intel_report(
+        self,
+        embedding_id: str,
+        title: str,
+        summary: Optional[str] = None,
+        content: Optional[str] = None,
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "summary": summary or "",
+                "content": (content or "")[:4000],  # Weaviate text limit guard
+                "embedding_id": embedding_id,
+            }
+            try:
+                self.client.collections.get("IntelReport").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("IntelReport").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            logger.info(f"✓ Indexed intel report: {embedding_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index intel report {embedding_id}: {e}")
+            return False
+
+    def search_intel_reports(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("IntelReport").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Intel report search failed: {e}")
             return []
 
     def health_check(self) -> bool:

@@ -318,6 +318,48 @@ class InteractionsCell(MemoryCell):
                     except Exception:
                         pass
 
+                # ── Auto-detect: IOCs in any message ────────────────────────────────
+                try:
+                    from src.cells.iocs.cell import detect_iocs_in_text as _detect_iocs
+                    from src.cells.iocs.model import IOC as _IOC
+                    from datetime import datetime as _dt, timezone as _tz
+                    _now_ioc = _dt.now(_tz.utc)
+                    _found_iocs = _detect_iocs(content)
+                    if _found_iocs:
+                        from src.services.weaviate_service import get_weaviate_service as _gwvs7
+                        db7 = SessionLocal()
+                        try:
+                            for _ioc_type, _ioc_val in _found_iocs[:20]:
+                                _existing_ioc = db7.query(_IOC).filter(
+                                    _IOC.type == _ioc_type, _IOC.value == _ioc_val
+                                ).first()
+                                if _existing_ioc:
+                                    _existing_ioc.last_seen = _now_ioc
+                                    db7.commit()
+                                else:
+                                    _new_ioc = _IOC(
+                                        type=_ioc_type,
+                                        value=_ioc_val,
+                                        source="auto-detect",
+                                        confidence=0.3,
+                                        first_seen=_now_ioc,
+                                        last_seen=_now_ioc,
+                                        meta_data={"source_interaction_id": str(interaction.id)},
+                                    )
+                                    db7.add(_new_ioc)
+                                    db7.commit()
+                                    db7.refresh(_new_ioc)
+                                    try:
+                                        _gwvs7().index_ioc(
+                                            str(_new_ioc.id), _ioc_type, _ioc_val
+                                        )
+                                    except Exception:
+                                        pass
+                        finally:
+                            db7.close()
+                except Exception:
+                    pass
+
                 return {"success": True, "id": str(interaction.id), "retention_days": retention.retention_days, "retain_reason": retention.reason}
             finally:
                 db.close()
