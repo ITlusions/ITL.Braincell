@@ -63,6 +63,11 @@ CELL_DEFAULTS: dict[str, int] = {
     "intel_reports":       0,
     # Vulnerability knowledge base — permanent
     "vuln_patches":        0,
+    # Operational cells — permanent
+    "tasks":              90,   # Done tasks expire; open/in-progress are set to 0 per-record
+    "runbooks":            0,   # Operational procedures — permanent
+    "api_contracts":       0,   # API specs — permanent
+    "dependencies":        0,   # Package tracking — permanent
 }
 
 # ---------------------------------------------------------------------------

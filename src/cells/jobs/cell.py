@@ -39,6 +39,10 @@ class JobsCell(MemoryCell):
         from src.cells.iocs.model import IOC
         from src.cells.intel_reports.model import IntelReport
         from src.cells.vuln_patches.model import VulnPatch
+        from src.cells.tasks.model import Task
+        from src.cells.runbooks.model import Runbook
+        from src.cells.api_contracts.model import ApiContract
+        from src.cells.dependencies.model import Dependency
 
         CELL_MAP = [
             ("Interaction", Interaction),
@@ -54,6 +58,10 @@ class JobsCell(MemoryCell):
             ("IOC", IOC),
             ("IntelReport", IntelReport),
             ("VulnPatch", VulnPatch),
+            ("Task", Task),
+            ("Runbook", Runbook),
+            ("ApiContract", ApiContract),
+            ("Dependency", Dependency),
         ]
 
         @mcp.tool()

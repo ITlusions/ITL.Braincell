@@ -36,6 +36,16 @@
 |------|-------------|
 | [testing/TESTING.md](./testing/TESTING.md) | Running tests, test categories, manual API and MCP curl examples |
 
+## Roadmap
+
+| File | Description |
+|------|-------------|
+| [roadmap/README.md](./roadmap/README.md) | Roadmap overview — immediate backlog + completed auto-detection |
+| [roadmap/PLANNED_CELLS.md](./roadmap/PLANNED_CELLS.md) | New cells: `tasks`, `references`, `errors`, `persons`, `versions` |
+| [roadmap/INTELLIGENCE.md](./roadmap/INTELLIGENCE.md) | Cross-cell linking, duplicate detection, session context injection, weekly digest |
+| [roadmap/INTEGRATIONS.md](./roadmap/INTEGRATIONS.md) | GitHub, Jira/Azure DevOps, Slack/Teams, Keycloak per-user memory |
+| [roadmap/ADVANCED.md](./roadmap/ADVANCED.md) | Contradictie-detectie, kennisgraaf, proactieve context push, multi-agent geheugen, fine-tuning export |
+
 ---
 
 ## Where to start

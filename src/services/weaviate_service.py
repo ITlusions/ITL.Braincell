@@ -282,8 +282,67 @@ class WeaviateService:
                     {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
                 ],
             },
+            "Task": {
+                "description": "Tasks and backlog items — work items tracked by agents or teams",
+                "properties": [
+                    {"name": "title", "description": "Task title", "dataType": ["text"]},
+                    {"name": "description", "description": "Task description", "dataType": ["text"]},
+                    {"name": "status", "description": "open / in_progress / done / cancelled / blocked", "dataType": ["string"]},
+                    {"name": "priority", "description": "critical / high / medium / low", "dataType": ["string"]},
+                    {"name": "project", "description": "Project or workstream", "dataType": ["string"]},
+                    {"name": "assignee", "description": "Person or agent responsible", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "Runbook": {
+                "description": "Operational runbooks — step-by-step procedures for incidents, deployments, maintenance",
+                "properties": [
+                    {"name": "title", "description": "Runbook title", "dataType": ["text"]},
+                    {"name": "description", "description": "Runbook description", "dataType": ["text"]},
+                    {"name": "category", "description": "incident_response / deployment / maintenance / ...", "dataType": ["string"]},
+                    {"name": "trigger", "description": "When to use this runbook", "dataType": ["text"]},
+                    {"name": "prerequisites", "description": "Prerequisites before starting", "dataType": ["text"]},
+                    {"name": "severity", "description": "P1 / P2 / P3 for incident runbooks", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "ApiContract": {
+                "description": "API contracts — specifications, versioning, endpoints, and changelogs",
+                "properties": [
+                    {"name": "title", "description": "Contract title", "dataType": ["text"]},
+                    {"name": "service_name", "description": "Service name", "dataType": ["string"]},
+                    {"name": "version", "description": "API version", "dataType": ["string"]},
+                    {"name": "spec_format", "description": "openapi / graphql / grpc / rest / soap", "dataType": ["string"]},
+                    {"name": "base_url", "description": "Base URL", "dataType": ["string"]},
+                    {"name": "spec_content", "description": "Full spec or summary", "dataType": ["text"]},
+                    {"name": "status", "description": "active / deprecated / draft / sunset", "dataType": ["string"]},
+                    {"name": "breaking_changes", "description": "Breaking changes description", "dataType": ["text"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
+            "Dependency": {
+                "description": "Software dependencies — packages, versions, license, and CVE exposure",
+                "properties": [
+                    {"name": "name", "description": "Package name", "dataType": ["text"]},
+                    {"name": "version", "description": "Package version", "dataType": ["string"]},
+                    {"name": "ecosystem", "description": "pypi / npm / nuget / maven / cargo / go / gem", "dataType": ["string"]},
+                    {"name": "project", "description": "Internal project using this dep", "dataType": ["string"]},
+                    {"name": "status", "description": "ok / vulnerable / deprecated / outdated / unknown", "dataType": ["string"]},
+                    {"name": "license", "description": "License identifier", "dataType": ["string"]},
+                    {"name": "notes", "description": "Additional notes", "dataType": ["text"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
         }
-        
+
         try:
             for class_name, config in collections_config.items():
                 try:
@@ -1598,6 +1657,220 @@ class WeaviateService:
             return [{"uuid": r.uuid, **r.properties} for r in results.objects]
         except Exception as e:
             logger.error(f"VulnPatch search failed: {e}")
+            return []
+
+    # -----------------------------------------------------------------------
+    #  Tasks                                                               #
+    # -----------------------------------------------------------------------
+
+    def index_task(
+        self,
+        embedding_id: str,
+        title: str,
+        description: str = "",
+        status: str = "open",
+        priority: str = "medium",
+        project: str = "",
+        assignee: str = "",
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "description": description[:2000],
+                "status": status,
+                "priority": priority,
+                "project": project,
+                "assignee": assignee,
+                "embedding_id": embedding_id,
+                "archived": False,
+                "archived_at": "",
+            }
+            try:
+                self.client.collections.get("Task").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("Task").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index task {embedding_id}: {e}")
+            return False
+
+    def search_tasks(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("Task").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Task search failed: {e}")
+            return []
+
+    # -----------------------------------------------------------------------
+    #  Runbooks                                                             #
+    # -----------------------------------------------------------------------
+
+    def index_runbook(
+        self,
+        embedding_id: str,
+        title: str,
+        description: str = "",
+        category: str = "",
+        trigger: str = "",
+        prerequisites: str = "",
+        severity: str = "",
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "description": description[:2000],
+                "category": category,
+                "trigger": trigger[:2000],
+                "prerequisites": prerequisites[:2000],
+                "severity": severity,
+                "embedding_id": embedding_id,
+                "archived": False,
+                "archived_at": "",
+            }
+            try:
+                self.client.collections.get("Runbook").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("Runbook").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index runbook {embedding_id}: {e}")
+            return False
+
+    def search_runbooks(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("Runbook").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Runbook search failed: {e}")
+            return []
+
+    # -----------------------------------------------------------------------
+    #  API Contracts                                                        #
+    # -----------------------------------------------------------------------
+
+    def index_api_contract(
+        self,
+        embedding_id: str,
+        title: str,
+        service_name: str = "",
+        version: str = "",
+        spec_format: str = "",
+        base_url: str = "",
+        spec_content: str = "",
+        status: str = "active",
+        breaking_changes: str = "",
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "service_name": service_name,
+                "version": version,
+                "spec_format": spec_format,
+                "base_url": base_url,
+                "spec_content": spec_content[:4000],
+                "status": status,
+                "breaking_changes": breaking_changes[:2000],
+                "embedding_id": embedding_id,
+                "archived": False,
+                "archived_at": "",
+            }
+            try:
+                self.client.collections.get("ApiContract").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("ApiContract").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index api_contract {embedding_id}: {e}")
+            return False
+
+    def search_api_contracts(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("ApiContract").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"ApiContract search failed: {e}")
+            return []
+
+    # -----------------------------------------------------------------------
+    #  Dependencies                                                         #
+    # -----------------------------------------------------------------------
+
+    def index_dependency(
+        self,
+        embedding_id: str,
+        name: str,
+        version: str = "",
+        ecosystem: str = "",
+        project: str = "",
+        status: str = "ok",
+        license: str = "",
+        notes: str = "",
+    ) -> bool:
+        if not self.client:
+            return False
+        try:
+            props = {
+                "name": name,
+                "version": version,
+                "ecosystem": ecosystem,
+                "project": project,
+                "status": status,
+                "license": license,
+                "notes": notes[:2000],
+                "embedding_id": embedding_id,
+                "archived": False,
+                "archived_at": "",
+            }
+            try:
+                self.client.collections.get("Dependency").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("Dependency").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index dependency {embedding_id}: {e}")
+            return False
+
+    def search_dependencies(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("Dependency").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"Dependency search failed: {e}")
             return []
 
     def health_check(self) -> bool:
