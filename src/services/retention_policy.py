@@ -56,6 +56,13 @@ CELL_DEFAULTS: dict[str, int] = {
     "snippets":            0,   # Code patterns — permanent
     "files_discussed":    30,   # File references — refreshed on each encounter
     "sessions":           90,   # Work session summaries
+    # National security intelligence — all permanent
+    "threats":             0,
+    "incidents":           0,
+    "iocs":                0,
+    "intel_reports":       0,
+    # Vulnerability knowledge base — permanent
+    "vuln_patches":        0,
 }
 
 # ---------------------------------------------------------------------------

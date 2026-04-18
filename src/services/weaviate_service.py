@@ -266,6 +266,22 @@ class WeaviateService:
                     {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
                 ],
             },
+            "VulnPatch": {
+                "description": "Known-vulnerable code snippets paired with their patched equivalents",
+                "properties": [
+                    {"name": "title", "description": "Short title", "dataType": ["text"]},
+                    {"name": "description", "description": "What the vulnerability is about", "dataType": ["text"]},
+                    {"name": "vulnerable_code", "description": "The vulnerable code snippet", "dataType": ["text"]},
+                    {"name": "patched_code", "description": "The fixed/patched version", "dataType": ["text"]},
+                    {"name": "patch_explanation", "description": "Explanation of what changed and why", "dataType": ["text"]},
+                    {"name": "language", "description": "Programming language", "dataType": ["string"]},
+                    {"name": "category", "description": "Vulnerability category (sql_injection, xss, ...)", "dataType": ["string"]},
+                    {"name": "severity", "description": "critical / high / medium / low", "dataType": ["string"]},
+                    {"name": "embedding_id", "description": "ID from PostgreSQL", "dataType": ["string"]},
+                    {"name": "archived", "description": "Whether record is archived", "dataType": ["boolean"]},
+                    {"name": "archived_at", "description": "When archived", "dataType": ["text"]},
+                ],
+            },
         }
         
         try:
@@ -1530,6 +1546,58 @@ class WeaviateService:
             return [{"uuid": r.uuid, **r.properties} for r in results.objects]
         except Exception as e:
             logger.error(f"Intel report search failed: {e}")
+            return []
+
+    # -----------------------------------------------------------------------
+    #  Vulnerable Code / Patches — VulnPatch                               #
+    # -----------------------------------------------------------------------
+
+    def index_vuln_patch(
+        self,
+        embedding_id: str,
+        title: str,
+        description: str = "",
+        vulnerable_code: str = "",
+        patched_code: str = "",
+        patch_explanation: str = "",
+    ) -> bool:
+        """Index a vulnerable/patched code pair in Weaviate."""
+        if not self.client:
+            return False
+        try:
+            props = {
+                "title": title,
+                "description": description[:2000],
+                "vulnerable_code": vulnerable_code[:4000],
+                "patched_code": patched_code[:4000],
+                "patch_explanation": patch_explanation[:2000],
+                "embedding_id": embedding_id,
+                "archived": False,
+                "archived_at": "",
+            }
+            try:
+                self.client.collections.get("VulnPatch").data.insert(properties=props, uuid=embedding_id)
+            except Exception as e:
+                if "already exists" in str(e):
+                    self.client.collections.get("VulnPatch").data.update(uuid=embedding_id, properties=props)
+                else:
+                    raise
+            return True
+        except Exception as e:
+            logger.error(f"Failed to index vuln_patch {embedding_id}: {e}")
+            return False
+
+    def search_vuln_patches(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Semantic search over vulnerable/patched code pairs."""
+        if not self.client:
+            return []
+        try:
+            results = self.client.collections.get("VulnPatch").query.near_text(
+                query=query, limit=limit, return_metadata=True
+            )
+            return [{"uuid": r.uuid, **r.properties} for r in results.objects]
+        except Exception as e:
+            logger.error(f"VulnPatch search failed: {e}")
             return []
 
     def health_check(self) -> bool:

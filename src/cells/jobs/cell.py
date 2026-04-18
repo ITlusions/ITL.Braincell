@@ -38,6 +38,7 @@ class JobsCell(MemoryCell):
         from src.cells.incidents.model import SecurityIncident
         from src.cells.iocs.model import IOC
         from src.cells.intel_reports.model import IntelReport
+        from src.cells.vuln_patches.model import VulnPatch
 
         CELL_MAP = [
             ("Interaction", Interaction),
@@ -52,6 +53,7 @@ class JobsCell(MemoryCell):
             ("SecurityIncident", SecurityIncident),
             ("IOC", IOC),
             ("IntelReport", IntelReport),
+            ("VulnPatch", VulnPatch),
         ]
 
         @mcp.tool()
