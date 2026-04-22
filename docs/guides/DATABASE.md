@@ -20,30 +20,58 @@ Every record written to PostgreSQL is also indexed in Weaviate (dual-write patte
 
 ## PostgreSQL Tables
 
-| Table               | Description                                      |
-|---------------------|--------------------------------------------------|
-| `conversations`     | Chat sessions with topic, summary, session_id    |
-| `design_decisions`  | Architectural decisions with rationale and impact|
-| `architecture_notes`| System component notes with component tags       |
-| `files_discussed`   | File references with metadata                    |
-| `code_snippets`     | Reusable code examples with language tags        |
-| `context_snapshots` | Point-in-time context captures                   |
-| `memory_sessions`   | Session grouping and metadata                    |
-| `alembic_version`   | Schema migration tracking                        |
+All 19 cells have their own table. Every table has `id` (UUID PK), `created_at`, and `updated_at`.
+
+| Table                      | Cell               | Description                                              |
+|----------------------------|--------------------|----------------------------------------------------------|
+| `conversations`            | conversations      | Chat history with topic, summary, session_id             |
+| `memory_sessions`          | sessions           | Session grouping with status and summary                 |
+| `interactions`             | interactions       | Individual messages (role, content, tokens_used)         |
+| `design_decisions`         | decisions          | Architectural decisions with rationale and impact        |
+| `architecture_notes`       | architecture_notes | Component-level architecture notes                       |
+| `code_snippets`            | snippets           | Reusable code examples with language tags                |
+| `files_discussed`          | files_discussed    | File references with path and language                   |
+| `cell_notes`               | notes              | Free-form notes with tags and source                     |
+| `cell_research_questions`  | research_questions | Questions with status (pending/investigating/answered)   |
+| `tasks`                    | tasks              | Action items with status, priority, project, assignee    |
+| `security_incidents`       | incidents          | Security incidents with severity, MITRE tactics, IOC refs|
+| `iocs`                     | iocs               | Indicators of Compromise with type, confidence, TLP      |
+| `threat_actors`            | threats            | APT groups / criminal orgs with TTPs and STIX ID         |
+| `intel_reports`            | intel_reports      | Intelligence reports with TLP, confidence, analyst       |
+| `vuln_patches`             | vuln_patches       | Vulnerable/patched code pairs with CVE/CWE refs          |
+| `runbooks`                 | runbooks           | Step-by-step operational procedures                      |
+| `dependencies`             | dependencies       | Package dependencies with version, ecosystem, CVE refs   |
+| `api_contracts`            | api_contracts      | API specs (OpenAPI/GraphQL/gRPC) with changelog          |
+| `alembic_version`          | —                  | Schema migration tracking                                |
 
 ---
 
 ## Weaviate Schema
 
-Three classes are managed in Weaviate for vector search:
+BrainCell creates Weaviate collections for cells that support semantic search. Each collection stores a text representation of the record plus a `source_id` back-reference to PostgreSQL.
 
-| Class           | Fields                                      |
-|-----------------|---------------------------------------------|
-| `Conversation`  | topic, summary, session_id, embedding_id    |
-| `Decision`      | decision, rationale, embedding_id           |
-| `CodeSnippet`   | title, code_content, language, embedding_id |
+| Collection             | Cell               | Primary search fields                          |
+|------------------------|--------------------|------------------------------------------------|
+| `Conversation`         | conversations      | topic, summary                                 |
+| `Decision`             | decisions          | decision, rationale                            |
+| `CodeSnippet`          | snippets           | title, description, code_content              |
+| `ArchitectureNote`     | architecture_notes | component, description                         |
+| `FileDiscussed`        | files_discussed    | file_path, description                         |
+| `Note`                 | notes              | title, content                                 |
+| `ResearchQuestion`     | research_questions | question, context, answer                      |
+| `Task`                 | tasks              | title, description, project                    |
+| `SecurityIncident`     | incidents          | title, description, attack_vector              |
+| `IOC`                  | iocs               | value, context, source                         |
+| `ThreatActor`          | threats            | name, ttps, motivation                         |
+| `IntelReport`          | intel_reports      | title, summary, content                        |
+| `VulnPatch`            | vuln_patches       | title, vulnerable_code, patch_explanation      |
+| `Runbook`              | runbooks           | title, description, trigger                    |
+| `Dependency`           | dependencies       | name, notes, cve_refs                          |
+| `ApiContract`          | api_contracts      | title, service_name, spec_content             |
 
-Weaviate uses `text2vec-transformers` to generate embeddings automatically on insert.
+The `jobs` cell uses Weaviate as its **only** backend (no PostgreSQL table).
+
+Weaviate uses the `sentence-transformers/all-MiniLM-L6-v2` model (384 dimensions) for embeddings, configured via the `text2vec-transformers` module.
 
 ---
 
