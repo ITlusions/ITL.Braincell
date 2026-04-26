@@ -83,6 +83,8 @@ class MemoryCell(ABC):
 | `threats`          | `/api/threats`       | PG + Weaviate  | Threat actors and TTP profiles               |
 | `intel_reports`    | `/api/intel_reports` | PG + Weaviate  | Threat intelligence reports (TLP-marked)     |
 | `vuln_patches`     | `/api/vuln_patches`  | PG + Weaviate  | Vulnerable code + patched counterparts       |
+| `kill_chains`      | `/api/kill-chains`   | PG + Weaviate  | Multi-phase attack campaigns (Lockheed / MITRE ATT&CK) |
+| `vuln_reports`     | `/api/vuln-reports`  | PG + Weaviate  | Bug bounty / responsible disclosure dossiers (CVSS, PoC, disclosure timeline, payout) |
 | `runbooks`         | `/api/runbooks`      | PostgreSQL     | Operational runbooks and procedures          |
 | `dependencies`     | `/api/dependencies`  | PostgreSQL     | Software package inventory                   |
 | `api_contracts`    | `/api/api_contracts` | PostgreSQL     | API specifications and changelogs            |
