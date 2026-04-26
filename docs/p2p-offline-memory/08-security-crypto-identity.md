@@ -47,10 +47,10 @@ ssl_context.minimum_version = ssl.TLSVersion.TLSv1_3
 
 ### 3.2 Key Storage
 
-```
-keys/
-├── node_signing.ed25519.private   # mode 0600; never leave node
-└── node_signing.ed25519.public    # included in NodeProfile
+```mermaid
+graph TD
+    K["keys/"] --> P["node_signing.ed25519.private\n(mode 0600 — never leave node)"]
+    K --> PUB["node_signing.ed25519.public\n(included in NodeProfile)"]
 ```
 
 For production nodes with TPM: use TPM-backed key storage. The signing API remains the same.
@@ -126,17 +126,16 @@ Even if an event passes policy (e.g., `sharing_scope=org:itl`), individual membe
 
 ### 4.3 Envelope Encryption
 
-```
-Plaintext payload
-     │
-     ▼
-Generate random 256-bit DEK
-     │
-     ├──▶ Encrypt payload with DEK (ChaCha20-Poly1305)  → payload_cipher
-     │
-     └──▶ ECDH(sender_ephemeral_key, scope_public_key)
-          → KDF (HKDF-SHA256) → KEK
-          → Wrap DEK with KEK (AES-256-GCM)           → dek_wrapped
+```mermaid
+flowchart TD
+    P["Plaintext payload"]
+    DEK["Generate random 256-bit DEK"]
+    ENC["Encrypt payload with DEK\n(ChaCha20-Poly1305)\n→ payload_cipher"]
+    ECDH["ECDH(sender_ephemeral_key, scope_public_key)\n→ KDF (HKDF-SHA256) → KEK\n→ Wrap DEK with KEK (AES-256-GCM)\n→ dek_wrapped"]
+
+    P --> DEK
+    DEK --> ENC
+    DEK --> ECDH
 ```
 
 ```python

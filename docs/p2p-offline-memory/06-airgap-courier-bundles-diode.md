@@ -62,11 +62,12 @@ Bundles are self-contained, signed archives containing a batch of events. They a
 
 ### 3.1 Bundle Structure
 
-```
-bundle-<node_id>-<timestamp>.bcbundle   (can be a .tar.gz or .zip)
-├── manifest.json
-├── events.ndjson
-└── manifest.sig
+```mermaid
+graph TD
+    B["bundle-&lt;node_id&gt;-&lt;timestamp&gt;.bcbundle\n(.tar.gz or .zip)"]
+    B --> M["manifest.json"]
+    B --> E["events.ndjson"]
+    B --> S["manifest.sig"]
 ```
 
 #### `manifest.json`

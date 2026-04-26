@@ -25,34 +25,25 @@
 
 ## 3. Node Components
 
-```
-┌──────────────────────────────────────────────────────┐
-│                     BrainCell Node                   │
-│                                                      │
-│  ┌──────────────┐   ┌──────────────────────────┐    │
-│  │  Tools /     │   │      Policy Engine        │    │
-│  │  Cells Layer │──▶│  (admission, send/recv)   │    │
-│  │  (existing)  │   └──────────────┬───────────┘    │
-│  └──────┬───────┘                  │                 │
-│         │                          ▼                 │
-│         │              ┌──────────────────────┐      │
-│         └─────────────▶│     Event Store      │      │
-│                        │  (SQLite append-only)│      │
-│                        └──────┬───────────────┘      │
-│                               │                      │
-│               ┌───────────────┼───────────┐          │
-│               ▼               ▼           ▼          │
-│     ┌──────────────┐  ┌──────────┐  ┌──────────┐    │
-│     │  Projectors  │  │  Local   │  │Replicator│    │
-│     │ (mat. views) │  │ FTS5 idx │  │  (P2P)   │    │
-│     └──────────────┘  └──────────┘  └────┬─────┘    │
-│                                           │          │
-└───────────────────────────────────────────┼──────────┘
-                                            │
-                              ┌─────────────┴──────────┐
-                              │      Peer Nodes /       │
-                              │  Courier / Bundles      │
-                              └────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph node["BrainCell Node"]
+        direction TB
+        TL["Tools / Cells Layer\n(existing)"]
+        PE["Policy Engine\n(admission, send/recv)"]
+        ES["Event Store\n(SQLite append-only)"]
+        PR["Projectors\n(mat. views)"]
+        FI["Local FTS5 idx"]
+        RE["Replicator\n(P2P)"]
+        TL --> PE
+        TL --> ES
+        PE --> ES
+        ES --> PR
+        ES --> FI
+        ES --> RE
+    end
+    PEERS["Peer Nodes /\nCourier / Bundles"]
+    RE --> PEERS
 ```
 
 ### Component responsibilities
@@ -70,86 +61,63 @@
 
 ## 4. Write-Path Data Flow
 
-```
-Tool invoked (e.g. interactions_save)
-        │
-        ▼
- Assign default policy
- (if caller did not provide one)
-        │
-        ▼
- Build EventEnvelope
- (event_id, type, actor, payload, policy)
-        │
-        ▼
- Sign envelope (Ed25519)
-        │
-        ▼
- Policy Engine: can_store(event, local_profile)?
-   ├── NO  → reject with policy error
-   └── YES ▼
- Append to EventStore (idempotent)
-        │
-        ├──▶ Projector(s) update local views
-        │
-        └──▶ FTS index update
-        │
-        ▼
- Replicator: eventually sync to allowed peers
-        │
-        ▼
- Return success to caller
+```mermaid
+flowchart TD
+    A["Tool invoked\n(e.g. interactions_save)"]
+    B["Assign default policy\n(if caller did not provide one)"]
+    C["Build EventEnvelope\n(event_id, type, actor, payload, policy)"]
+    D["Sign envelope (Ed25519)"]
+    E{"Policy Engine:\ncan_store(event, local_profile)?"}
+    F["Reject with policy error"]
+    G["Append to EventStore (idempotent)"]
+    H["Projector(s) update local views"]
+    I["FTS index update"]
+    J["Replicator: eventually sync to allowed peers"]
+    K["Return success to caller"]
+
+    A --> B --> C --> D --> E
+    E -- NO --> F
+    E -- YES --> G
+    G --> H
+    G --> I
+    G --> J --> K
 ```
 
 ---
 
 ## 5. Read-Path Data Flow
 
-```
-Tool invoked (e.g. search_memory, get_relevant_context)
-        │
-        ▼
- Query Local FTS Index (fast, deterministic)
-        │
-        ▼
- Merge with recent items from Projector views
-        │
-        ▼
- Apply result policy filter
- (strip payloads caller is not permitted to see)
-        │
-        ▼
- Return results
+```mermaid
+flowchart TD
+    A["Tool invoked\n(e.g. search_memory, get_relevant_context)"]
+    B["Query Local FTS Index\n(fast, deterministic)"]
+    C["Merge with recent items\nfrom Projector views"]
+    D["Apply result policy filter\n(strip payloads caller is not permitted to see)"]
+    E["Return results"]
+
+    A --> B --> C --> D --> E
 ```
 
 ---
 
 ## 6. Replication Data Flow
 
-```
-Replicator background loop (per configured peer)
-        │
-        ▼
- POST /replication/handshake  →  exchange NodeProfiles
-        │
-        ▼
- POST /replication/sync  (since=last_cursor, limit=N)
-        │
-  Remote sends batch of EventEnvelopes
-  (already filtered by sender's policy engine)
-        │
-        ▼
- For each received event:
-   ├── Verify signature
-   ├── can_receive(event, peer_profile)?  ─── NO → discard
-   ├── can_store(event, local_profile)?   ─── NO → discard
-   └── append / project / index
-        │
-        ▼
- Update peer cursor
-        │
-        ▼
- Sleep(backoff) → repeat
+```mermaid
+flowchart TD
+    A["Replicator background loop\n(per configured peer)"]
+    B["POST /replication/handshake\n(exchange NodeProfiles)"]
+    C["POST /replication/sync\n(since=last_cursor, limit=N)"]
+    D["Remote sends filtered\nEventEnvelope batch"]
+    E["Verify signature"]
+    F{"can_receive +\ncan_store?"}
+    G["Discard event"]
+    H["append / project / index"]
+    I["Update peer cursor"]
+    J["Sleep(backoff)"]
+
+    A --> B --> C --> D --> E --> F
+    F -- NO --> G
+    F -- YES --> H --> I --> J --> A
 ```
 
 ---
@@ -158,35 +126,45 @@ Replicator background loop (per configured peer)
 
 ### 7.1 Single-node (offline/edge)
 
-```
-[ BrainCell Node ]  ── no peers ──  works fully offline
+```mermaid
+graph LR
+    N["BrainCell Node\n(offline / edge — no peers configured)"]
+    style N fill:#dae8fc,stroke:#6c8ebf
 ```
 
 ### 7.2 Two-node direct sync
 
-```
-[ Node A ]  ←──── mTLS sync ────▶  [ Node B ]
+```mermaid
+graph LR
+    A["Node A"] <-- "mTLS sync" --> B["Node B"]
 ```
 
 ### 7.3 Hub-and-spoke
 
-```
-          [ Node A ]
-              │
-[ Node B ]──[ Hub / Central ]──[ Node C ]
-              │
-          [ Node D ]
+```mermaid
+graph TB
+    Hub["Hub / Central"]
+    A["Node A"]
+    B["Node B"]
+    C["Node C"]
+    D["Node D"]
+    A <--> Hub
+    B <--> Hub
+    C <--> Hub
+    D <--> Hub
 ```
 
 Hub is just another peer with wider policy permissions (can store more, can relay).
 
 ### 7.4 Air-gapped site
 
-```
-[ Connected Node ]  ──bundle export──▶  [ Courier Laptop ]
-                                              │  (physically transported)
-                                              ▼
-                                   [ Air-Gapped Node ]
+```mermaid
+graph LR
+    CN["Connected Node"]
+    CL["Courier Laptop\n(physically transported)"]
+    AG["Air-Gapped Node"]
+    CN -- "bundle export" --> CL
+    CL -- "physical transport" --> AG
 ```
 
 ---

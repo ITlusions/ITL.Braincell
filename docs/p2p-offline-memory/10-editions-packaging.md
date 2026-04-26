@@ -37,13 +37,10 @@ BrainCell ships in three editions that enable progressively more complex deploym
 
 Minimal footprint for dev, CI, or single-site use.
 
-```
-┌──────────────────────────────┐
-│  BrainCell (Community)       │
-│  - FastAPI REST + MCP        │
-│  - SQLite EventStore + FTS5  │
-│  - No peers configured       │
-└──────────────────────────────┘
+```mermaid
+graph TD
+    N["BrainCell Community\n- FastAPI REST + MCP\n- SQLite EventStore + FTS5\n- No peers configured"]
+    style N fill:#dae8fc,stroke:#6c8ebf
 ```
 
 Docker image: `ghcr.io/itlusions/braincell:latest`  
@@ -51,10 +48,9 @@ Compose target: `docker-compose.yml` (default)
 
 ### 2.2 Replicated Cluster (2+ nodes)
 
-```
-[ Node A (NL) ] ←──mTLS──▶ [ Node B (DE) ]
-       │                           │
-       └─────────mTLS──────────────┘
+```mermaid
+graph LR
+    A["Node A (NL)"] <-- "mTLS" --> B["Node B (DE)"]
 ```
 
 Same image; peer list configured in `config/peers.yaml`.  
@@ -70,8 +66,9 @@ Typical use:
 
 ### 2.4 Air-Gapped Site
 
-```
-[ Connected node ]  ──USB bundle──▶  [ Air-gapped node ]
+```mermaid
+graph LR
+    CN["Connected node"] -- "USB bundle" --> AG["Air-gapped node"]
 ```
 
 Nodes configured with `role=diode-out` (source) and `role=diode-in` (destination) respectively, or both `normal` if bidirectional sync is needed via courier.

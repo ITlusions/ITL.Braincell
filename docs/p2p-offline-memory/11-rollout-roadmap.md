@@ -8,18 +8,36 @@
 
 Implementation follows a **vertical slice** approach: each ticket (T1–T8) delivers a working, testable piece. Later tickets build on earlier ones. Start with T1 and T2 in parallel; then T3, T4; then T5, T6; then T7, T8.
 
-```
-T1 EventStore ──────────────────────┐
-T2 Policy Engine ──────────────────┐│
-                                   ││
-T3 Projectors + Views ─────────────┼┤ (depends on T1, T2)
-T4 Local Search (FTS5) ────────────┼┤ (depends on T1, T3)
-                                   ││
-T5 Replicator MVP ─────────────────┼┤ (depends on T1, T2)
-T6 Cryptography ───────────────────┼┤ (depends on T1, T2)
-                                   ││
-T7 Air-gap Bundles ─────────────────┤ (depends on T1, T2, T5, T6)
-T8 Observability & Ops ─────────────┘ (depends on T1-T7)
+```mermaid
+graph TD
+    T1["T1: EventStore"]
+    T2["T2: Policy Engine"]
+    T3["T3: Projectors + Views"]
+    T4["T4: Local Search (FTS5)"]
+    T5["T5: Replicator MVP"]
+    T6["T6: Cryptography"]
+    T7["T7: Air-gap Bundles"]
+    T8["T8: Observability & Ops"]
+
+    T1 --> T3
+    T2 --> T3
+    T1 --> T4
+    T3 --> T4
+    T1 --> T5
+    T2 --> T5
+    T1 --> T6
+    T2 --> T6
+    T1 --> T7
+    T2 --> T7
+    T5 --> T7
+    T6 --> T7
+    T1 --> T8
+    T2 --> T8
+    T3 --> T8
+    T4 --> T8
+    T5 --> T8
+    T6 --> T8
+    T7 --> T8
 ```
 
 ---
