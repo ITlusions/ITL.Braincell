@@ -343,16 +343,16 @@ class WeaviateService:
         try:
             for class_name, config in collections_config.items():
                 try:
-                    # Check if collection exists
-                    collections = self.client.collections.list_all()
-                    collection_exists = any(c.name == class_name for c in collections.collections)
+                    # Check if collection exists (v4 SDK: list_all() returns dict)
+                    existing_collections = self.client.collections.list_all()
+                    collection_exists = class_name in existing_collections
                     
                     if not collection_exists:
-                        # Create the collection using v4 API
+                        # Create the collection using v4 API (no vectorizer - standalone Weaviate)
                         self.client.collections.create(
                             name=class_name,
                             description=config["description"],
-                            vectorizer_config=Configure.Vectorizer.text2vec_transformers(),
+                            vectorizer_config=Configure.Vectorizer.none(),
                         )
                         logger.info(f"✓ Created Weaviate collection: {class_name}")
                     else:
