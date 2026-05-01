@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL for structured memory storage
   postgres:
@@ -13,7 +11,6 @@ services:
       - "9500:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U braincell"]
       interval: 10s
@@ -71,6 +68,91 @@ services:
     networks:
       - braincell-network
 
+  # BrainCell REST API
+  api:
+    build:
+      context: ../
+      dockerfile: ITL.BrainCell.Api/Dockerfile
+    image: itlusions/braincell-api:latest
+    container_name: braincell-api
+    ports:
+      - "9504:8000"
+    environment:
+      - DATABASE_URL=postgresql://braincell:braincell_dev_password@braincell-postgres:5432/braincell
+      - WEAVIATE_URL=http://braincell-weaviate:8080
+      - REDIS_URL=redis://braincell-redis:6379
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - braincell-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # BrainCell MCP Server
+  mcp:
+    build:
+      context: ../
+      dockerfile: ITL.BrainCell.Mcp/Dockerfile
+    image: itlusions/braincell-mcp:latest
+    container_name: braincell-mcp
+    ports:
+      - "9506:9506"
+    environment:
+      - DATABASE_URL=postgresql://braincell:braincell_dev_password@braincell-postgres:5432/braincell
+      - WEAVIATE_URL=http://braincell-weaviate:8080
+      - REDIS_URL=redis://braincell-redis:6379
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - braincell-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9506/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # BrainCell Web Dashboard
+  dashboard:
+    build:
+      context: ../
+      dockerfile: ITL.BrainCell.Dashboard/Dockerfile
+    image: itlusions/braincell-dashboard:latest
+    container_name: braincell-dashboard
+    ports:
+      - "9507:8001"
+    environment:
+      - DATABASE_URL=postgresql://braincell:braincell_dev_password@braincell-postgres:5432/braincell
+      - BRAINCELL_API_URL=http://braincell-api:8000
+      - ENVIRONMENT=production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - braincell-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   weaviate_data:
@@ -78,4 +160,5 @@ volumes:
 
 networks:
   braincell-network:
+    name: braincell-network
     driver: bridge

@@ -16,33 +16,30 @@ class WeaviateService:
     def __init__(self):
         """Initialize Weaviate client"""
         self.client = None
+        # Parse Weaviate URL properly
+        url = settings.weaviate_url.strip("/")
+        if url.startswith("http://"):
+            url = url[7:]  # Remove http://
+        elif url.startswith("https://"):
+            url = url[8:]  # Remove https://
+        
+        # Split host and port
+        if ":" in url:
+            host, port = url.split(":", 1)
+            port = int(port)
+        else:
+            host = url
+            port = 8080
+        
+        logger.info(f"Connecting to Weaviate at {host}:{port}")
+        
+        # Try v4 API - simplified connection without additional_config
+        # Using grpc_port 50051 for Kubernetes gRPC service
         try:
-            # Parse Weaviate URL properly
-            url = settings.weaviate_url.strip("/")
-            if url.startswith("http://"):
-                url = url[7:]  # Remove http://
-            elif url.startswith("https://"):
-                url = url[8:]  # Remove https://
-            
-            # Split host and port
-            if ":" in url:
-                host, port = url.split(":", 1)
-                port = int(port)
-            else:
-                host = url
-                port = 8080
-            
-            logger.info(f"Connecting to Weaviate at {host}:{port}")
-            
-            # Try v4 API with extended timeout for Kubernetes environments
-            # Using grpc_port 50051 for Kubernetes gRPC service
             self.client = weaviate.connect_to_local(
                 host=host,
                 port=port,
-                grpc_port=50051,
-                additional_config=weaviate.init.AdditionalConfig(
-                    timeout=weaviate.init.Timeout(init=30)
-                )
+                grpc_port=50051
             )
             logger.info("✓ Connected to Weaviate v4")
         except Exception as e:

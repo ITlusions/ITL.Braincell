@@ -1,0 +1,20 @@
+title: BrainCell Lite
+description: Persistent memory for GitHub Copilot — zero-dependency, local JSON files, no server required.
+baseurl: ""
+url: "https://itlusions.github.io"
+
+theme: null
+plugins: []
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+exclude:
+  - README.md
+  - install-braincell-lite.ps1
+  - screenshot*.png
+  - screenshot_install.py
+  - shot-*.png
+  - "*.py"

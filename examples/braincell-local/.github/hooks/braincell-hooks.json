@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "windows": "powershell -ExecutionPolicy Bypass -File .github/scripts/braincell-session-start.ps1",
+        "linux": "pwsh -ExecutionPolicy Bypass -File .github/scripts/braincell-session-start.ps1",
+        "osx": "pwsh -ExecutionPolicy Bypass -File .github/scripts/braincell-session-start.ps1",
+        "timeout": 15
+      }
+    ]
+  }
+}

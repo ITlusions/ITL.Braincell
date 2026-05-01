@@ -7,14 +7,34 @@ New memory cells to be added to BrainCell. Each cell follows the standard struct
 
 ## `tasks` — Action items & TODOs
 
-**Status**: `done` ✅
+**Status**: `planned`
 
-Fully implemented. REST API: `GET/POST /api/tasks`, `GET/PUT/DELETE /api/tasks/{id}`, shortcut `GET /api/tasks/open`.
+### Why
+Action items appear in every session ("ik ga X doen", "todo:", "action item") but are never stored. They disappear after the conversation ends.
 
-### MCP tools (live)
-- `tasks_save(title, description?, status?, priority?, assignee?, project?, tags?)`
-- `tasks_search(query, limit=20)`
-- `tasks_list(status?, project?, priority?, limit=50)`
+### Auto-detection trigger
+`role='user'` or `role='assistant'` + one of:
+- `todo:`, `to-do:`
+- `ik ga .+ doen`, `ik moet .+ regelen`
+- `action item`, `actiepunt`
+- `\[ \]` checkbox syntax in markdown
+
+### Model fields
+| Field | Type | Notes |
+|-------|------|-------|
+| `title` | str | Short description of the task |
+| `description` | str | Full context from the message |
+| `status` | enum | `open` / `in_progress` / `done` / `cancelled` |
+| `priority` | enum | `low` / `medium` / `high` |
+| `due_date` | datetime | Optional |
+| `source_interaction_id` | UUID | Interaction that triggered this |
+| `source` | enum | `auto_detected` / `manual` |
+
+### MCP tools
+- `task_save` — create a task manually
+- `task_list` — list by status/priority
+- `task_update` — change status/priority/due_date
+- `task_search` — semantic search
 
 ---
 

@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrainCell Lite — Persistent Memory for GitHub Copilot</title>
+  <meta name="description" content="Give GitHub Copilot a persistent memory. Zero dependencies, local JSON, version controlled." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #050810;
+      --surface:  #0d1021;
+      --border:   #1e2340;
+      --green:    #00d084;
+      --green-dk: #009960;
+      --purple:   #7c3aed;
+      --purple-lt:#a78bfa;
+      --blue:     #3b82f6;
+      --text:     #f0f4ff;
+      --muted:    #6b7594;
+      --card:     #0b0f1e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* STARS */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 45%, rgba(255,255,255,.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 20%, rgba(255,255,255,.35) 0%, transparent 100%),
+        radial-gradient(1px 1px at 75% 70%, rgba(255,255,255,.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 65% 55%, rgba(255,255,255,.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 42% 88%, rgba(255,255,255,.25) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(1rem, 4vw, 3rem);
+      height: 60px;
+      background: rgba(5,8,16,.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: .625rem;
+      text-decoration: none;
+    }
+    .nav-logo svg { width: 28px; height: 28px; }
+    .nav-logo span { font-weight: 700; font-size: .9375rem; color: var(--text); }
+    .nav-links { display: flex; align-items: center; gap: 2rem; }
+    .nav-links a { font-size: .875rem; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-gh {
+      display: flex;
+      align-items: center;
+      gap: .375rem;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .375rem .875rem;
+      font-size: .8125rem;
+      font-weight: 500;
+      color: var(--text) !important;
+    }
+    .nav-gh:hover { background: rgba(255,255,255,.1) !important; color: var(--text) !important; }
+
+    /* HERO */
+    .hero-wrap {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 3rem;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 80px clamp(1rem, 3vw, 2rem) 72px;
+    }
+    .hero-glow {
+      position: absolute;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse, rgba(124,58,237,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: rgba(0,208,132,.08);
+      border: 1px solid rgba(0,208,132,.25);
+      padding: .3rem .875rem;
+      border-radius: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .hero-badge .pulse {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.4); }
+    }
+    .hero h1 {
+      font-size: clamp(2.25rem, 4vw, 3.25rem);
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 .accent-green { color: var(--green); }
+    .hero h1 .accent-purple { color: var(--purple-lt); }
+    .hero p {
+      font-size: 1.0625rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 480px;
+      margin-bottom: 2rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: .875rem;
+      flex-wrap: wrap;
+      margin-bottom: 2.5rem;
+    }
+    .btn-glow {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .7rem 1.5rem;
+      border-radius: 10px;
+      font-size: .9375rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, var(--green) 0%, #00b8d9 100%);
+      color: #000;
+      box-shadow: 0 0 24px rgba(0,208,132,.3);
+      transition: box-shadow .2s, transform .15s;
+    }
+    .btn-glow:hover { box-shadow: 0 0 40px rgba(0,208,132,.5); transform: translateY(-1px); }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .7rem 1.5rem;
+      border-radius: 10px;
+      font-size: .9375rem;
+      font-weight: 500;
+      text-decoration: none;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      transition: background .15s, border-color .15s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.08); border-color: var(--muted); }
+
+    /* HERO STATS */
+    .hero-stats {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .hstat {
+      display: flex;
+      flex-direction: column;
+    }
+    .hstat .val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .hstat .lbl {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .2rem;
+    }
+
+    /* HERO VISUAL */
+    .hero-visual {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .node-diagram {
+      width: 100%;
+      max-width: 460px;
+    }
+
+    /* SECTION */
+    .section {
+      position: relative;
+      z-index: 1;
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 0 clamp(1rem, 3vw, 2rem) 80px;
+    }
+    .section-eyebrow {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: .5rem;
+    }
+    .section-h2 {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -.025em;
+      margin-bottom: .625rem;
+    }
+    .section-sub {
+      font-size: .9375rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin-bottom: 2.5rem;
+    }
+
+    /* HOW IT WORKS — TIMELINE */
+    .timeline {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 1.375rem;
+      top: 2rem;
+      bottom: 2rem;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--green), var(--purple), var(--blue));
+      opacity: .4;
+    }
+    .tl-item {
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 1.25rem;
+      padding: 1.5rem 0;
+    }
+    .tl-dot {
+      width: 2.75rem; height: 2.75rem;
+      background: var(--card);
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .tl-dot.purple { border-color: var(--purple-lt); }
+    .tl-dot.blue   { border-color: var(--blue); }
+    .tl-dot svg { width: 16px; height: 16px; }
+    .tl-content {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+    }
+    .tl-phase {
+      font-size: .6875rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: .375rem;
+    }
+    .tl-phase.purple { color: var(--purple-lt); }
+    .tl-phase.blue   { color: var(--blue); }
+    .tl-content h3 { font-size: 1rem; font-weight: 600; margin-bottom: .375rem; }
+    .tl-content p  { font-size: .875rem; color: var(--muted); }
+
+    /* BENTO GRID */
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto auto;
+      gap: 1rem;
+    }
+    .bento-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .bento-card:hover {
+      border-color: rgba(0,208,132,.3);
+      box-shadow: 0 0 32px rgba(0,208,132,.07);
+    }
+    .bento-card.wide { grid-column: span 2; }
+    .bento-card.tall { grid-row: span 2; }
+    .bento-card .bc-glow {
+      position: absolute;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: .12;
+      top: -60px; right: -60px;
+    }
+    .bc-icon {
+      width: 2.5rem; height: 2.5rem;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 1.125rem;
+    }
+    .bc-green  { background: rgba(0,208,132,.12); }
+    .bc-purple { background: rgba(124,58,237,.15); }
+    .bc-blue   { background: rgba(59,130,246,.12); }
+    .bc-amber  { background: rgba(245,158,11,.12); }
+    .bento-card h3 { font-size: .9375rem; font-weight: 600; margin-bottom: .375rem; }
+    .bento-card p  { font-size: .8125rem; color: var(--muted); line-height: 1.6; }
+
+    /* CODE TERMINAL */
+    .terminal {
+      background: #020408;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .terminal-bar {
+      background: #0d1021;
+      padding: .625rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tb-dots { display: flex; gap: .375rem; }
+    .tb-dots span { width: 10px; height: 10px; border-radius: 50%; }
+    .tb-red { background: #ff5f57; } .tb-yel { background: #ffbd2e; } .tb-grn { background: #28c941; }
+    .tb-title { font-size: .75rem; color: var(--muted); font-family: monospace; margin-left: .5rem; }
+    .copy-btn-term {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .7rem;
+      padding: .15rem .5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .copy-btn-term:hover { color: var(--text); border-color: var(--muted); }
+    .copy-btn-term.copied { color: var(--green); border-color: var(--green); }
+    .terminal pre {
+      padding: 1.25rem;
+      font-size: .8125rem;
+      line-height: 1.8;
+      font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+      color: #cdd6f4;
+      overflow-x: auto;
+    }
+    .t-prompt { color: var(--green); }
+    .t-cmd    { color: #cdd6f4; }
+    .t-kw     { color: #cba6f7; }
+    .t-str    { color: #a6e3a1; }
+    .t-path   { color: #89b4fa; }
+    .t-ok     { color: var(--green); }
+    .t-dim    { color: #585b70; }
+    .t-arrow  { color: #f38ba8; }
+
+    /* TOPICS */
+    .topics-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .75rem;
+    }
+    .topic-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .875rem 1rem;
+      transition: border-color .2s, transform .15s;
+    }
+    .topic-card:hover { border-color: rgba(0,208,132,.35); transform: translateY(-2px); }
+    .topic-card.dashed { border-style: dashed; }
+    .topic-file {
+      font-family: "Cascadia Code", "Fira Code", monospace;
+      font-size: .7rem;
+      color: var(--green);
+      opacity: .8;
+      display: block;
+      margin-bottom: .25rem;
+    }
+    .topic-card h4 { font-size: .875rem; font-weight: 600; margin-bottom: .2rem; }
+    .topic-card p  { font-size: .79rem; color: var(--muted); }
+
+    /* INSTALL SECTION */
+    .install-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+    .step-list { display: flex; flex-direction: column; gap: 1.25rem; }
+    .step-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .snum {
+      width: 2rem; height: 2rem;
+      background: linear-gradient(135deg, var(--green), #00b8d9);
+      color: #000;
+      border-radius: 50%;
+      font-size: .8125rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-row h3 { font-size: .9375rem; font-weight: 600; margin-bottom: .2rem; }
+    .step-row p  { font-size: .8125rem; color: var(--muted); }
+
+    /* FILE TREE */
+    .tree-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      font-family: "Cascadia Code", "Fira Code", monospace;
+      font-size: .8rem;
+      line-height: 1.9;
+      color: var(--muted);
+      margin-top: 1.5rem;
+    }
+    .tree-wrap .tr-w  { color: var(--text); }
+    .tree-wrap .tr-g  { color: var(--green); }
+    .tree-wrap .tr-p  { color: var(--purple-lt); }
+
+    /* FOOTER */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2.5rem clamp(1rem, 4vw, 3rem);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    footer .f-brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-weight: 700;
+      font-size: .875rem;
+      color: var(--text);
+    }
+    footer p { font-size: .8125rem; color: var(--muted); }
+    footer .f-links { display: flex; gap: 1.5rem; }
+    footer .f-links a { font-size: .8125rem; color: var(--muted); text-decoration: none; }
+    footer .f-links a:hover { color: var(--text); }
+
+    /* DIVIDER */
+    .divider {
+      position: relative;
+      z-index: 1;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border), transparent);
+      margin: 0 clamp(1rem, 3vw, 2rem);
+    }
+
+    @media (max-width: 900px) {
+      .hero-wrap    { grid-template-columns: 1fr; }
+      .hero-visual  { display: none; }
+      .bento        { grid-template-columns: 1fr 1fr; }
+      .bento-card.wide { grid-column: span 2; }
+      .install-layout { grid-template-columns: 1fr; }
+      .topics-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .nav-links    { display: none; }
+      .bento        { grid-template-columns: 1fr; }
+      .bento-card.wide { grid-column: span 1; }
+      .topics-strip { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="6" fill="#00d084" fill-opacity=".15"/>
+      <circle cx="14" cy="14" r="4" fill="#00d084"/>
+      <circle cx="6" cy="8" r="2" fill="#00d084" opacity=".5"/>
+      <circle cx="22" cy="8" r="2" fill="#00d084" opacity=".5"/>
+      <circle cx="6" cy="20" r="2" fill="#00d084" opacity=".5"/>
+      <circle cx="22" cy="20" r="2" fill="#00d084" opacity=".5"/>
+      <line x1="10" y1="12" x2="8" y2="9.5" stroke="#00d084" stroke-width="1.2" opacity=".4"/>
+      <line x1="18" y1="12" x2="20" y2="9.5" stroke="#00d084" stroke-width="1.2" opacity=".4"/>
+      <line x1="10" y1="16" x2="8" y2="18.5" stroke="#00d084" stroke-width="1.2" opacity=".4"/>
+      <line x1="18" y1="16" x2="20" y2="18.5" stroke="#00d084" stroke-width="1.2" opacity=".4"/>
+    </svg>
+    <span>BrainCell Lite</span>
+  </a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="#topics">Topics</a>
+    <a class="nav-gh" href="https://github.com/ITlusions/ITL.BrainCell" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div style="position:relative;overflow:hidden">
+  <div class="hero-glow"></div>
+  <div class="hero-wrap">
+    <div>
+      <div class="hero-badge"><span class="pulse"></span>Open Source · MIT License</div>
+      <h1>
+        Give Copilot a<br>
+        <span class="accent-green">persistent</span><br>
+        <span class="accent-purple">memory</span>
+      </h1>
+      <p>Decisions, tasks, errors, and patterns stored as plain JSON in your repo — automatically injected at every session start. No server. No setup. No cost.</p>
+      <div class="hero-actions">
+        <a class="btn-glow" href="#install">Install in 30 seconds</a>
+        <a class="btn-ghost" href="https://github.com/ITlusions/ITL.BrainCell" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><span class="val" style="color:var(--green)">0</span><span class="lbl">Dependencies</span></div>
+        <div class="hstat"><span class="val">JSON</span><span class="lbl">Storage format</span></div>
+        <div class="hstat"><span class="val" style="color:var(--purple-lt)">MIT</span><span class="lbl">License</span></div>
+        <div class="hstat"><span class="val">Git</span><span class="lbl">Version controlled</span></div>
+      </div>
+    </div>
+
+    <!-- SVG NODE DIAGRAM -->
+    <div class="hero-visual">
+      <svg class="node-diagram" viewBox="0 0 460 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- glow defs -->
+        <defs>
+          <filter id="glow-g" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-p" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <radialGradient id="rg-g" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#00d084" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="#00d084" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="rg-p" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#7c3aed" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- glow halos -->
+        <circle cx="230" cy="190" r="90" fill="url(#rg-g)" opacity=".5"/>
+
+        <!-- connecting lines -->
+        <line x1="230" y1="190" x2="90"  y2="80"  stroke="#00d084" stroke-width="1.2" stroke-dasharray="5,4" opacity=".35"/>
+        <line x1="230" y1="190" x2="370" y2="80"  stroke="#00d084" stroke-width="1.2" stroke-dasharray="5,4" opacity=".35"/>
+        <line x1="230" y1="190" x2="60"  y2="220" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="5,4" opacity=".35"/>
+        <line x1="230" y1="190" x2="400" y2="220" stroke="#7c3aed" stroke-width="1.2" stroke-dasharray="5,4" opacity=".35"/>
+        <line x1="230" y1="190" x2="130" y2="320" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="5,4" opacity=".3"/>
+        <line x1="230" y1="190" x2="330" y2="320" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="5,4" opacity=".3"/>
+
+        <!-- satellite nodes -->
+        <!-- tasks -->
+        <circle cx="90" cy="80" r="36" fill="#0b0f1e" stroke="#00d084" stroke-width="1.5" filter="url(#glow-g)" opacity=".9"/>
+        <text x="90" y="74" text-anchor="middle" font-family="monospace" font-size="9" fill="#00d084" font-weight="700">tasks</text>
+        <text x="90" y="87" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">3 open</text>
+
+        <!-- decisions -->
+        <circle cx="370" cy="80" r="36" fill="#0b0f1e" stroke="#00d084" stroke-width="1.5" filter="url(#glow-g)" opacity=".9"/>
+        <text x="370" y="74" text-anchor="middle" font-family="monospace" font-size="8" fill="#00d084" font-weight="700">decisions</text>
+        <text x="370" y="87" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">12 saved</text>
+
+        <!-- patterns -->
+        <circle cx="60" cy="220" r="36" fill="#0b0f1e" stroke="#7c3aed" stroke-width="1.5" filter="url(#glow-p)" opacity=".85"/>
+        <text x="60" y="214" text-anchor="middle" font-family="monospace" font-size="8" fill="#a78bfa" font-weight="700">patterns</text>
+        <text x="60" y="227" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">7 saved</text>
+
+        <!-- errors -->
+        <circle cx="400" cy="220" r="36" fill="#0b0f1e" stroke="#7c3aed" stroke-width="1.5" filter="url(#glow-p)" opacity=".85"/>
+        <text x="400" y="214" text-anchor="middle" font-family="monospace" font-size="8" fill="#a78bfa" font-weight="700">errors</text>
+        <text x="400" y="227" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">fixed: 9</text>
+
+        <!-- notes -->
+        <circle cx="130" cy="320" r="34" fill="#0b0f1e" stroke="#3b82f6" stroke-width="1.5" opacity=".85"/>
+        <text x="130" y="314" text-anchor="middle" font-family="monospace" font-size="9" fill="#93c5fd" font-weight="700">notes</text>
+        <text x="130" y="327" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">5 entries</text>
+
+        <!-- facts -->
+        <circle cx="330" cy="320" r="34" fill="#0b0f1e" stroke="#3b82f6" stroke-width="1.5" opacity=".85"/>
+        <text x="330" y="314" text-anchor="middle" font-family="monospace" font-size="9" fill="#93c5fd" font-weight="700">facts</text>
+        <text x="330" y="327" text-anchor="middle" font-family="monospace" font-size="8" fill="#6b7594">project info</text>
+
+        <!-- center node -->
+        <circle cx="230" cy="190" r="52" fill="#050810" stroke="#00d084" stroke-width="2" filter="url(#glow-g)"/>
+        <circle cx="230" cy="190" r="44" fill="#050810" stroke="#00d084" stroke-width=".5" opacity=".3"/>
+        <text x="230" y="183" text-anchor="middle" font-family="monospace" font-size="10" fill="#00d084" font-weight="800" letter-spacing="-.5">BrainCell</text>
+        <text x="230" y="198" text-anchor="middle" font-family="monospace" font-size="9" fill="#6b7594">Lite</text>
+        <text x="230" y="212" text-anchor="middle" font-family="monospace" font-size="8" fill="#00d084" opacity=".6">● active</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FEATURES BENTO -->
+<div id="features" class="section" style="padding-top:64px">
+  <div class="section-eyebrow">Features</div>
+  <div class="section-h2">Everything you need, nothing you don't</div>
+  <p class="section-sub">BrainCell Lite is intentionally minimal — but powerful where it counts.</p>
+  <div class="bento">
+    <div class="bento-card wide">
+      <div class="bc-glow" style="background:radial-gradient(circle,#00d084,transparent)"></div>
+      <div class="bc-icon bc-green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d084" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </div>
+      <h3>SessionStart hook — memory loads automatically</h3>
+      <p>A VS Code lifecycle hook fires before your first message and injects all <code style="color:#00d084;font-size:.85em">braincell-lite-*.json</code> files as context. You never need to manually reference memory files — it just works.</p>
+    </div>
+    <div class="bento-card">
+      <div class="bc-glow" style="background:radial-gradient(circle,#7c3aed,transparent)"></div>
+      <div class="bc-icon bc-purple">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </div>
+      <h3>Structured memory topics</h3>
+      <p>Each topic lives in its own JSON file — tasks, decisions, errors, patterns, facts. Easy to read, diff, and search.</p>
+    </div>
+    <div class="bento-card">
+      <div class="bc-icon bc-blue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <h3>Zero dependencies</h3>
+      <p>Pure PowerShell + plain JSON. No npm, no pip, no container — works anywhere Git runs.</p>
+    </div>
+    <div class="bento-card">
+      <div class="bc-icon bc-green">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d084" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </div>
+      <h3>SKILL.md — self-updating</h3>
+      <p>The memory skill downloads the latest version from GitHub weekly, keeping your procedures up to date automatically.</p>
+    </div>
+    <div class="bento-card">
+      <div class="bc-icon bc-amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Privacy by default</h3>
+      <p>Nothing leaves your machine. No telemetry, no analytics, no external API. Local JSON, version controlled with your code.</p>
+    </div>
+    <div class="bento-card">
+      <div class="bc-icon bc-purple">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <h3>Team-friendly</h3>
+      <p>Commit <code style="color:#a78bfa;font-size:.85em">.braincell/</code> to share memory across machines and team members. Perfect for onboarding.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- HOW IT WORKS -->
+<div id="how" class="section" style="padding-top:64px">
+  <div class="section-eyebrow">How it works</div>
+  <div class="section-h2">Three phases, zero effort</div>
+  <p class="section-sub">BrainCell Lite hooks into VS Code lifecycle events to load and save memory transparently.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:start">
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot">
+          <svg fill="none" stroke="#00d084" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v10l4 2"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <div class="tl-content">
+          <div class="tl-phase">Session start</div>
+          <h3>Memory loads automatically</h3>
+          <p>The SessionStart hook reads all <code style="color:#00d084;font-size:.85em">braincell-lite-*.json</code> files and injects them as a system message before you type anything.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot purple">
+          <svg fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <div class="tl-content">
+          <div class="tl-phase purple">During session</div>
+          <h3>Copilot writes to memory</h3>
+          <p>Decisions, tasks, errors, and patterns are saved as entries in topic-scoped JSON files. A fast-search index is maintained automatically.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot blue">
+          <svg fill="none" stroke="#93c5fd" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <div class="tl-content">
+          <div class="tl-phase blue">Next session</div>
+          <h3>Context carries over</h3>
+          <p>Architecture decisions, open tasks, working commands, and preferences are available immediately — no re-explaining needed.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="tb-dots"><span class="tb-red"></span><span class="tb-yel"></span><span class="tb-grn"></span></div>
+        <span class="tb-title">braincell-session-start.ps1</span>
+      </div>
+      <pre><code><span class="t-dim"># SessionStart hook — fires before first message</span>
+
+<span class="t-prompt">$</span> <span class="t-kw">$files</span> = Get-ChildItem .braincell <span class="t-kw">-Filter</span> <span class="t-str">"*.json"</span>
+
+<span class="t-ok">✓</span> <span class="t-str">braincell-lite-notes.json</span>      <span class="t-dim">(5 entries)</span>
+<span class="t-ok">✓</span> <span class="t-str">braincell-lite-decisions.json</span>  <span class="t-dim">(12 entries)</span>
+<span class="t-ok">✓</span> <span class="t-str">braincell-lite-tasks.json</span>      <span class="t-dim">(3 open)</span>
+<span class="t-ok">✓</span> <span class="t-str">braincell-lite-errors.json</span>     <span class="t-dim">(9 fixed)</span>
+<span class="t-ok">✓</span> <span class="t-str">braincell-lite-patterns.json</span>   <span class="t-dim">(7 saved)</span>
+
+<span class="t-dim"># Injecting as system context...</span>
+<span class="t-ok">✓</span> Memory loaded — 36 entries across 5 topics
+<span class="t-ok">✓</span> Fast-search index: 36 entries
+
+<span class="t-dim"># Copilot Chat is now context-aware</span>
+<span class="t-arrow">→</span> Session ready</code></pre>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- INSTALL -->
+<div id="install" class="section" style="padding-top:64px">
+  <div class="section-eyebrow">Install</div>
+  <div class="section-h2">One command, 30 seconds</div>
+  <p class="section-sub">Run from your repo root. The installer creates all required files and commits them.</p>
+  <div class="install-layout">
+    <div>
+      <div class="step-list">
+        <div class="step-row"><div class="snum">1</div><div><h3>Run the installer</h3><p>Open a terminal in your repository root and run the command on the right.</p></div></div>
+        <div class="step-row"><div class="snum">2</div><div><h3>Confirm the commit</h3><p>The installer offers to commit all generated files to your repository.</p></div></div>
+        <div class="step-row"><div class="snum">3</div><div><h3>Open a new Copilot Chat</h3><p>Memory is active immediately. No additional configuration required.</p></div></div>
+      </div>
+      <div class="tree-wrap">
+        <div class="tr-w">your-repo/</div>
+        <div>&nbsp;&nbsp;├── .braincell/</div>
+        <div>&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── <span class="tr-g">SKILL.md</span></div>
+        <div>&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── <span class="tr-g">braincell-lite-index.json</span></div>
+        <div>&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── <span class="tr-g">braincell-lite-notes.json</span></div>
+        <div>&nbsp;&nbsp;└── .github/</div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <span class="tr-p">copilot-instructions.md</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── hooks/<span class="tr-p">braincell-hooks.json</span></div>
+        <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── scripts/<span class="tr-p">braincell-session-start.ps1</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="tb-dots"><span class="tb-red"></span><span class="tb-yel"></span><span class="tb-grn"></span></div>
+          <span class="tb-title">Option A — directly from GitHub</span>
+          <button class="copy-btn-term" onclick="copyTerm(this)">copy</button>
+        </div>
+        <pre><code><span class="t-prompt">PS&gt;</span> <span class="t-kw">irm</span> https://raw.githubusercontent.com/<span class="t-path">ITlusions/ITL.BrainCell</span>/main/examples/braincell-local/install-braincell-lite.ps1 <span class="t-kw">|</span> <span class="t-kw">iex</span></code></pre>
+      </div>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="tb-dots"><span class="tb-red"></span><span class="tb-yel"></span><span class="tb-grn"></span></div>
+          <span class="tb-title">Option B — local file</span>
+          <button class="copy-btn-term" onclick="copyTerm(this)">copy</button>
+        </div>
+        <pre><code><span class="t-prompt">PS&gt;</span> <span class="t-kw">.\install-braincell-lite.ps1</span>
+<span class="t-prompt">PS&gt;</span> <span class="t-kw">.\install-braincell-lite.ps1</span> <span class="t-path">-SkipCommit</span>
+<span class="t-prompt">PS&gt;</span> <span class="t-kw">.\install-braincell-lite.ps1</span> <span class="t-path">-TargetPath</span> <span class="t-str">C:\repos\project</span>
+<span class="t-prompt">PS&gt;</span> <span class="t-kw">.\install-braincell-lite.ps1</span> <span class="t-path">-Force</span></code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- TOPICS -->
+<div id="topics" class="section" style="padding-top:64px">
+  <div class="section-eyebrow">Memory topics</div>
+  <div class="section-h2">Scoped, extensible, readable</div>
+  <p class="section-sub">Each topic is a separate JSON file. New files are created automatically when needed.</p>
+  <div class="topics-strip">
+    <div class="topic-card"><span class="topic-file">braincell-lite-notes.json</span><h4>Notes</h4><p>Context and summaries</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-decisions.json</span><h4>Decisions</h4><p>Architecture choices</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-tasks.json</span><h4>Tasks</h4><p>Open / done / blocked</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-errors.json</span><h4>Errors</h4><p>Bugs and fixes</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-patterns.json</span><h4>Patterns</h4><p>Reusable solutions</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-facts.json</span><h4>Facts</h4><p>Versions and metadata</p></div>
+    <div class="topic-card"><span class="topic-file">braincell-lite-preferences.json</span><h4>Preferences</h4><p>Style and conventions</p></div>
+    <div class="topic-card dashed"><span class="topic-file">braincell-lite-[custom].json</span><h4>Custom</h4><p>Any domain you need</p></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="f-brand">
+    <svg width="20" height="20" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#00d084" fill-opacity=".15"/><circle cx="14" cy="14" r="4" fill="#00d084"/><circle cx="6" cy="8" r="2" fill="#00d084" opacity=".5"/><circle cx="22" cy="8" r="2" fill="#00d084" opacity=".5"/><circle cx="6" cy="20" r="2" fill="#00d084" opacity=".5"/><circle cx="22" cy="20" r="2" fill="#00d084" opacity=".5"/></svg>
+    BrainCell Lite
+  </div>
+  <p>Part of <a href="https://github.com/ITlusions/ITL.BrainCell" target="_blank">ITL BrainCell</a> by <a href="https://github.com/ITlusions" target="_blank">ITLusions</a>. MIT License.</p>
+  <div class="f-links">
+    <a href="https://github.com/ITlusions/ITL.BrainCell" target="_blank">GitHub</a>
+    <a href="https://github.com/ITlusions/ITL.BrainCell/issues" target="_blank">Issues</a>
+    <a href="https://github.com/ITlusions/ITL.BrainCell/blob/main/examples/braincell-local/README.md" target="_blank">Docs</a>
+  </div>
+</footer>
+
+<script>
+  function copyTerm(btn) {
+    const pre = btn.closest('.terminal').querySelector('pre');
+    if (!navigator.clipboard || !pre) return;
+    navigator.clipboard.writeText(pre.innerText).then(function() {
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
