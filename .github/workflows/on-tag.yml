@@ -89,7 +89,18 @@ jobs:
           python -m build --wheel --outdir dist/
 
       # ------------------------------------------------------------------
-      # 4. GitHub Release aanmaken met wheel als asset
+      # 4. Publiceer naar PyPI
+      # ------------------------------------------------------------------
+      - name: Publiceer naar PyPI
+        run: |
+          pip install twine
+          twine upload dist/*.whl
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+      # ------------------------------------------------------------------
+      # 5. GitHub Release aanmaken met wheel als asset
       # ------------------------------------------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -111,3 +122,4 @@ jobs:
           echo "| **Versie** | \`${{ steps.meta.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Pre-release** | ${{ steps.meta.outputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PyPI** | https://pypi.org/project/itl-braincell/${{ steps.meta.outputs.version }}/ |" >> $GITHUB_STEP_SUMMARY
