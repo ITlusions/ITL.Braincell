@@ -24,13 +24,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-version:
+    name: Detect version
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-detect-version.yml@main
+
   ci:
     name: CI
+    needs: detect-version
     uses: ITlusions/ITL.Github/.github/workflows/_reusable-ci-python.yml@main
     with:
       python-version: "3.12"
       ref: ${{ github.sha }}
       artifact-name: "braincell-wheel"
+      version: ${{ needs.detect-version.outputs.python-version }}
       postgres-user: "braincell"
       postgres-password: "braincell_test"
       postgres-db: "braincell_test"
