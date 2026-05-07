@@ -21,6 +21,9 @@ jobs:
     permissions:
       contents: write
       actions: read
+      id-token: write   # OIDC voor PyPI Trusted Publishing
+
+    environment: production
 
     steps:
       # ------------------------------------------------------------------
@@ -91,13 +94,10 @@ jobs:
       # ------------------------------------------------------------------
       # 4. Publiceer naar PyPI
       # ------------------------------------------------------------------
-      - name: Publiceer naar PyPI
+      - name: Publiceer naar PyPI (OIDC)
         run: |
           pip install twine
-          twine upload dist/*.whl
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          twine upload dist/*.whl --verbose
 
       # ------------------------------------------------------------------
       # 5. GitHub Release aanmaken met wheel als asset
