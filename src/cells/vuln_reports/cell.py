@@ -154,7 +154,6 @@ class VulnReportsCell(MemoryCell):
             """
             db = SessionLocal()
             try:
-                import uuid as _uuid
                 from src.cells.vuln_reports.model import VulnReport as _VR
                 record = _VR(
                     title=title,

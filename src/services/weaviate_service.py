@@ -1,6 +1,5 @@
 import weaviate
 from typing import List, Optional, Dict, Any
-from uuid import UUID
 import logging
 from weaviate.classes.config import Configure
 

@@ -1,6 +1,6 @@
 """ThreatActor SQLAlchemy model"""
 import uuid
-from sqlalchemy import Column, String, DateTime, JSON, Float, Integer
+from sqlalchemy import Column, String, DateTime, JSON, Float
 from sqlalchemy.dialects.postgresql import UUID
 
 from src.core.models import Base, TimestampMixin, RetentionMixin

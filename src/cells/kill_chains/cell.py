@@ -174,7 +174,7 @@ class KillChainsCell(MemoryCell):
                 db.close()
 
 
-def _chain_summary(r: "KillChain") -> dict:
+def _chain_summary(r) -> dict:
     return {
         "id": str(r.id),
         "name": r.name,
