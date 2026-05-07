@@ -1,0 +1,100 @@
+name: Release (reusable)
+
+# ---------------------------------------------------------------------------
+# Reusable workflow: maak een GitHub Release aan en voeg wheel toe als asset
+# ---------------------------------------------------------------------------
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Semver versie (zonder 'v'-prefix), bijv. 1.2.3 of 1.2.3-rc.1"
+        required: true
+        type: string
+      ref:
+        description: "Git ref (tag) waarop de release gebaseerd is"
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Detecteer of dit een pre-release is
+      # ------------------------------------------------------------------
+      - name: Detecteer release type
+        id: release-type
+        run: |
+          VERSION="${{ inputs.version }}"
+          if echo "$VERSION" | grep -qE '-(alpha|beta|rc)\.' ; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "release_type=Pre-release" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "release_type=Stable release" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------------------------------
+      # 2. Checkout voor release notes generatie
+      # ------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------
+      # 3. Download wheel artifact (gebouwd door publish job)
+      # ------------------------------------------------------------------
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: braincell-wheel-${{ inputs.version }}
+          path: dist/
+        continue-on-error: true
+
+      # ------------------------------------------------------------------
+      # 4. Maak GitHub Release aan
+      # ------------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: "v${{ inputs.version }}"
+          prerelease: ${{ steps.release-type.outputs.prerelease }}
+          generate_release_notes: true
+          files: dist/*.whl
+          body: |
+            ## ${{ steps.release-type.outputs.release_type }} — v${{ inputs.version }}
+
+            ### Installatie
+
+            ```bash
+            pip install itl-braincell==${{ inputs.version }} \
+              --extra-index-url https://maven.pkg.github.com/ITlusions/
+            ```
+
+            Of via directe download van het wheel-bestand hieronder.
+
+            ---
+            *Automatisch aangemaakt door de release pipeline*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------------
+      # 5. Summary
+      # ------------------------------------------------------------------
+      - name: Write job summary
+        run: |
+          echo "## Release aangemaakt" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Versie** | \`v${{ inputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Type** | ${{ steps.release-type.outputs.release_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pre-release** | ${{ steps.release-type.outputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY

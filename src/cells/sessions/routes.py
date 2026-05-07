@@ -9,6 +9,7 @@ from src.cells.sessions.model import MemorySession
 from src.cells.sessions.schema import MemorySessionCreate, MemorySessionResponse, MemorySessionUpdate
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=MemorySessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(session: MemorySessionCreate, db: Session = Depends(get_db)):
-    db_session = MemorySession(**session.model_dump())
+    db_session = MemorySession(**schema_to_db_kwargs(session))
     db.add(db_session)
     db.commit()
     db.refresh(db_session)

@@ -1,0 +1,110 @@
+name: CI — Branch push
+
+# ---------------------------------------------------------------------------
+# Triggert bij push op GitFlow-branches (feature, develop, release, hotfix, main)
+# Op main: na geslaagde CI wordt automatisch een patch-versie tag aangemaakt.
+# Die tag activeert vervolgens on-tag.yml → Publish + Release.
+# ---------------------------------------------------------------------------
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - "feature/**"
+      - "release/**"
+      - "hotfix/**"
+  pull_request:
+    branches:
+      - develop
+      - main
+      - "release/**"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/_reusable-ci.yml
+    with:
+      python-version: "3.12"
+      ref: ${{ github.sha }}
+
+  # ------------------------------------------------------------------
+  # Auto-tag: alleen op main na geslaagde CI.
+  # Bepaalt de hoogste bestaande semver-tag en bumpt de patch versie.
+  # De nieuwe tag activeert on-tag.yml (CI → Publish → Release).
+  # ------------------------------------------------------------------
+  auto-tag:
+    name: Auto-tag patch release
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Bepaal volgende versie
+        id: next-version
+        run: |
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -n 1)
+
+          if [ -z "$LATEST" ]; then
+            NEXT="v0.1.0"
+            echo "Geen bestaande tag gevonden — start bij $NEXT"
+          else
+            echo "Laatste stabiele tag: $LATEST"
+            MAJOR=$(echo "$LATEST" | cut -d. -f1 | tr -d 'v')
+            MINOR=$(echo "$LATEST" | cut -d. -f2)
+            PATCH=$(echo "$LATEST" | cut -d. -f3)
+            NEXT="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          echo "next=$NEXT" >> $GITHUB_OUTPUT
+          echo "Nieuwe tag: $NEXT"
+
+      - name: Controleer of tag al bestaat
+        id: tag-check
+        run: |
+          TAG="${{ steps.next-version.outputs.next }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $TAG bestaat al — overgeslagen"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Maak en push tag
+        if: steps.tag-check.outputs.exists == 'false'
+        run: |
+          TAG="${{ steps.next-version.outputs.next }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Automatische release $TAG na geslaagde CI op main"
+          git push origin "$TAG"
+          echo "Tag $TAG gepusht — on-tag.yml neemt het over"
+
+      - name: Write job summary
+        run: |
+          TAG="${{ steps.next-version.outputs.next }}"
+          EXISTS="${{ steps.tag-check.outputs.exists }}"
+          echo "## Auto-tag resultaat" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$EXISTS" = "true" ]; then
+            echo "Tag \`$TAG\` bestond al — geen actie ondernomen." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Tag \`$TAG\` aangemaakt en gepusht." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "on-tag.yml start nu: CI → Publish → Release." >> $GITHUB_STEP_SUMMARY
+          fi

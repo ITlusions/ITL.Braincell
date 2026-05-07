@@ -25,6 +25,7 @@ class IOCCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class IOCResponse(BaseModel):
     id: UUID
     type: str

@@ -9,6 +9,7 @@ from src.cells.snippets.model import CodeSnippet
 from src.cells.snippets.schema import CodeSnippetCreate, CodeSnippetResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=CodeSnippetResponse, status_code=status.HTTP_201_CREATED)
 async def create_code_snippet(snippet: CodeSnippetCreate, db: Session = Depends(get_db)):
-    db_snippet = CodeSnippet(**snippet.model_dump())
+    db_snippet = CodeSnippet(**schema_to_db_kwargs(snippet))
     db.add(db_snippet)
     db.commit()
     db.refresh(db_snippet)

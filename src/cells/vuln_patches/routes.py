@@ -9,6 +9,7 @@ from src.cells.vuln_patches.model import VulnPatch
 from src.cells.vuln_patches.schema import VulnPatchCreate, VulnPatchResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=VulnPatchResponse, status_code=status.HTTP_201_CREATED)
 async def create_vuln_patch(entry: VulnPatchCreate, db: Session = Depends(get_db)):
-    db_entry = VulnPatch(**entry.model_dump())
+    db_entry = VulnPatch(**schema_to_db_kwargs(entry))
     db.add(db_entry)
     db.commit()
     db.refresh(db_entry)

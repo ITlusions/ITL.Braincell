@@ -22,6 +22,7 @@ class ApiContractCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class ApiContractResponse(ApiContractCreate):
     id: UUID
     created_at: datetime | None = None

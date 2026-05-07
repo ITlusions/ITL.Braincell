@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.cells.runbooks.model import Runbook
 from src.cells.runbooks.schema import RunbookCreate, RunbookResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=RunbookResponse, status_code=status.HTTP_201_CREATED)
 async def create_runbook(runbook: RunbookCreate, db: Session = Depends(get_db)):
-    db_runbook = Runbook(**runbook.model_dump())
+    db_runbook = Runbook(**schema_to_db_kwargs(runbook))
     db.add(db_runbook)
     db.commit()
     db.refresh(db_runbook)

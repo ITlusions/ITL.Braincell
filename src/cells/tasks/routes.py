@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from src.cells.tasks.model import Task
 from src.cells.tasks.schema import TaskCreate, TaskResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(task: TaskCreate, db: Session = Depends(get_db)):
-    db_task = Task(**task.model_dump())
+    db_task = Task(**schema_to_db_kwargs(task))
     db.add(db_task)
     db.commit()
     db.refresh(db_task)

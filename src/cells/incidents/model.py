@@ -25,4 +25,5 @@ class SecurityIncident(Base, TimestampMixin, RetentionMixin):
     resolved_at = Column(DateTime, nullable=True)
     ioc_refs = Column(JSON, nullable=True, default=list)           # list of IOC value strings
     timeline = Column(JSON, nullable=True, default=list)           # [{timestamp, event, analyst}]
+    tags = Column(JSON, nullable=True, default=list)               # free-form tags
     meta_data = Column(JSON, nullable=True, default=dict)

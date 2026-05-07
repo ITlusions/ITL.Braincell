@@ -30,6 +30,7 @@ class VulnPatchCreate(BaseModel):
     meta_data: dict = Field(default_factory=dict)
 
 
+    created_at: datetime | None = None
 class VulnPatchResponse(VulnPatchCreate):
     id: UUID
     created_at: datetime

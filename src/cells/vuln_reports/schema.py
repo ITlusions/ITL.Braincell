@@ -66,6 +66,7 @@ class VulnReportCreate(BaseModel):
     meta_data: dict = Field(default_factory=dict)
 
 
+    created_at: datetime | None = None
 class VulnReportStatusUpdate(BaseModel):
     """Lightweight update for advancing report status and recording payout."""
     status: str

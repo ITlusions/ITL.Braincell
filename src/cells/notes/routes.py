@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db
 from src.cells.notes.model import Note
 from src.cells.notes.schema import NoteCreate, NoteUpdate, NoteResponse
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 @router.post("", response_model=NoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_note(note: NoteCreate, db: Session = Depends(get_db)):
     """Create a new note."""
-    db_note = Note(**note.model_dump())
+    db_note = Note(**schema_to_db_kwargs(note))
     db.add(db_note)
     db.commit()
     db.refresh(db_note)

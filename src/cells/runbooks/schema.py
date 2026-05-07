@@ -29,6 +29,7 @@ class RunbookCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class RunbookResponse(RunbookCreate):
     id: UUID
     created_at: datetime | None = None

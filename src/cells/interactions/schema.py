@@ -17,6 +17,7 @@ class InteractionCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class InteractionUpdate(BaseModel):
     role: str | None = None
     content: str | None = None

@@ -9,6 +9,7 @@ from src.cells.kill_chains.model import KillChain
 from src.cells.kill_chains.schema import KillChainCreate, KillChainPhaseUpdate, KillChainResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=KillChainResponse, status_code=status.HTTP_201_CREATED)
 async def create_kill_chain(payload: KillChainCreate, db: Session = Depends(get_db)):
-    row = KillChain(**payload.model_dump())
+    row = KillChain(**schema_to_db_kwargs(payload))
     db.add(row)
     db.commit()
     db.refresh(row)

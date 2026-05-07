@@ -9,6 +9,7 @@ from src.cells.architecture_notes.model import ArchitectureNote
 from src.cells.architecture_notes.schema import ArchitectureNoteCreate, ArchitectureNoteResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=ArchitectureNoteResponse, status_code=status.HTTP_201_CREATED)
 async def create_architecture_note(note: ArchitectureNoteCreate, db: Session = Depends(get_db)):
-    db_note = ArchitectureNote(**note.model_dump())
+    db_note = ArchitectureNote(**schema_to_db_kwargs(note))
     db.add(db_note)
     db.commit()
     db.refresh(db_note)

@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from src.cells.versions.model import CellVersion
 from src.cells.versions.schema import VersionCreate, VersionResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 router = APIRouter()
 
 
 @router.post("", response_model=VersionResponse, status_code=status.HTTP_201_CREATED)
 async def create_version(version: VersionCreate, db: Session = Depends(get_db)):
-    db_version = CellVersion(**version.model_dump())
+    db_version = CellVersion(**schema_to_db_kwargs(version))
     db.add(db_version)
     db.commit()
     db.refresh(db_version)

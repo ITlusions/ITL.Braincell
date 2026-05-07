@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from src.cells.persons.model import Person
 from src.cells.persons.schema import PersonCreate, PersonResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 router = APIRouter()
 
 
 @router.post("", response_model=PersonResponse, status_code=status.HTTP_201_CREATED)
 async def create_person(person: PersonCreate, db: Session = Depends(get_db)):
-    db_person = Person(**person.model_dump())
+    db_person = Person(**schema_to_db_kwargs(person))
     db.add(db_person)
     db.commit()
     db.refresh(db_person)

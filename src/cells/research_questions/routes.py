@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 from src.cells.research_questions.model import ResearchQuestion
 from src.cells.research_questions.schema import (
     ResearchQuestionCreate,
@@ -20,7 +21,7 @@ router = APIRouter()
 @router.post("", response_model=ResearchQuestionResponse, status_code=status.HTTP_201_CREATED)
 async def create_question(question: ResearchQuestionCreate, db: Session = Depends(get_db)):
     """Create a new research question."""
-    db_q = ResearchQuestion(**question.model_dump())
+    db_q = ResearchQuestion(**schema_to_db_kwargs(question))
     db.add(db_q)
     db.commit()
     db.refresh(db_q)

@@ -18,6 +18,7 @@ class CodeSnippetCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class CodeSnippetResponse(BaseModel):
     id: UUID
     title: str

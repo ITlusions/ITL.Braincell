@@ -10,6 +10,7 @@ from src.cells.incidents.model import SecurityIncident
 from src.cells.incidents.schema import IncidentCreate, IncidentResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -17,7 +18,7 @@ router = APIRouter()
 
 @router.post("", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED)
 async def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
-    db_incident = SecurityIncident(**incident.model_dump())
+    db_incident = SecurityIncident(**schema_to_db_kwargs(incident))
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)

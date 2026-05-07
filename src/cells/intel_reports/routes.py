@@ -9,6 +9,7 @@ from src.cells.intel_reports.model import IntelReport
 from src.cells.intel_reports.schema import IntelReportCreate, IntelReportResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=IntelReportResponse, status_code=status.HTTP_201_CREATED)
 async def create_intel_report(report: IntelReportCreate, db: Session = Depends(get_db)):
-    db_report = IntelReport(**report.model_dump())
+    db_report = IntelReport(**schema_to_db_kwargs(report))
     db.add(db_report)
     db.commit()
     db.refresh(db_report)

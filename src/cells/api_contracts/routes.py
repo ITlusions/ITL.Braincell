@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.cells.api_contracts.model import ApiContract
 from src.cells.api_contracts.schema import ApiContractCreate, ApiContractResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,7 +16,7 @@ router = APIRouter()
 
 @router.post("", response_model=ApiContractResponse, status_code=status.HTTP_201_CREATED)
 async def create_api_contract(contract: ApiContractCreate, db: Session = Depends(get_db)):
-    db_contract = ApiContract(**contract.model_dump())
+    db_contract = ApiContract(**schema_to_db_kwargs(contract))
     db.add(db_contract)
     db.commit()
     db.refresh(db_contract)

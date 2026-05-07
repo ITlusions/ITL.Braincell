@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.cells.dependencies.model import Dependency
 from src.cells.dependencies.schema import DependencyCreate, DependencyResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,7 +16,7 @@ router = APIRouter()
 
 @router.post("", response_model=DependencyResponse, status_code=status.HTTP_201_CREATED)
 async def create_dependency(dep: DependencyCreate, db: Session = Depends(get_db)):
-    db_dep = Dependency(**dep.model_dump())
+    db_dep = Dependency(**schema_to_db_kwargs(dep))
     db.add(db_dep)
     db.commit()
     db.refresh(db_dep)

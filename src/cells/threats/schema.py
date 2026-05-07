@@ -22,6 +22,7 @@ class ThreatActorCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class ThreatActorResponse(BaseModel):
     id: UUID
     name: str

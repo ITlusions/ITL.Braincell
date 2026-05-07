@@ -15,6 +15,7 @@ class VersionCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class VersionResponse(VersionCreate):
     id: UUID
     created_at: datetime | None = None

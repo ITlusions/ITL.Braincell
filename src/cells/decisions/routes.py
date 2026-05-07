@@ -9,6 +9,7 @@ from src.cells.decisions.model import DesignDecision
 from src.cells.decisions.schema import DecisionCreate, DecisionResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +17,7 @@ router = APIRouter()
 
 @router.post("", response_model=DecisionResponse, status_code=status.HTTP_201_CREATED)
 async def create_decision(decision: DecisionCreate, db: Session = Depends(get_db)):
-    db_decision = DesignDecision(**decision.model_dump())
+    db_decision = DesignDecision(**schema_to_db_kwargs(decision))
     db.add(db_decision)
     db.commit()
     db.refresh(db_decision)

@@ -9,6 +9,7 @@ from src.cells.iocs.model import IOC
 from src.cells.iocs.schema import IOCCreate, IOCResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -25,7 +26,7 @@ async def create_ioc(ioc: IOCCreate, db: Session = Depends(get_db)):
         db.refresh(existing)
         return existing
 
-    db_ioc = IOC(**ioc.model_dump())
+    db_ioc = IOC(**schema_to_db_kwargs(ioc))
     db.add(db_ioc)
     db.commit()
     db.refresh(db_ioc)

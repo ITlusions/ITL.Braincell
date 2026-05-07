@@ -15,6 +15,7 @@ class DecisionCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class DecisionResponse(BaseModel):
     id: UUID
     decision: str

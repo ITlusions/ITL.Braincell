@@ -17,6 +17,7 @@ class MemorySessionCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class MemorySessionUpdate(BaseModel):
     session_name: str | None = None
     end_time: datetime | None = None

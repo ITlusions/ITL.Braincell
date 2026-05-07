@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from src.cells.errors.model import CellError
 from src.cells.errors.schema import ErrorCreate, ErrorResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 router = APIRouter()
 
 
 @router.post("", response_model=ErrorResponse, status_code=status.HTTP_201_CREATED)
 async def create_error(error: ErrorCreate, db: Session = Depends(get_db)):
-    db_error = CellError(**error.model_dump())
+    db_error = CellError(**schema_to_db_kwargs(error))
     db.add(db_error)
     db.commit()
     db.refresh(db_error)

@@ -28,9 +28,11 @@ class IncidentCreate(BaseModel):
     resolved_at: datetime | None = None
     ioc_refs: list[str] | None = None
     timeline: list[dict[str, Any]] | None = None
+    tags: list[str] | None = None
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class IncidentResponse(BaseModel):
     id: UUID
     title: str
@@ -48,6 +50,7 @@ class IncidentResponse(BaseModel):
     resolved_at: datetime | None = None
     ioc_refs: list[str] | None = None
     timeline: list[dict[str, Any]] | None = None
+    tags: list[str] | None = None
     meta_data: dict[str, Any] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

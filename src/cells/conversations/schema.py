@@ -14,6 +14,7 @@ class ConversationCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class ConversationUpdate(BaseModel):
     topic: str | None = None
     summary: str | None = None

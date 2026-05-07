@@ -25,6 +25,7 @@ class IntelReportCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class IntelReportResponse(BaseModel):
     id: UUID
     title: str

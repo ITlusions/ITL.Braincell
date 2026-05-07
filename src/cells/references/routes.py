@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from src.cells.references.model import Reference
 from src.cells.references.schema import ReferenceCreate, ReferenceResponse
 from src.core.database import get_db
+from src.core.schemas import schema_to_db_kwargs
 
 router = APIRouter()
 
 
 @router.post("", response_model=ReferenceResponse, status_code=status.HTTP_201_CREATED)
 async def create_reference(ref: ReferenceCreate, db: Session = Depends(get_db)):
-    db_ref = Reference(**ref.model_dump())
+    db_ref = Reference(**schema_to_db_kwargs(ref))
     db.add(db_ref)
     db.commit()
     db.refresh(db_ref)

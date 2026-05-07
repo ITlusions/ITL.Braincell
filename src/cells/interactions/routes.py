@@ -9,6 +9,7 @@ from src.cells.interactions.model import Interaction
 from src.cells.interactions.schema import InteractionCreate, InteractionResponse, InteractionUpdate
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -19,7 +20,7 @@ async def create_interaction(
     interaction: InteractionCreate,
     db: Session = Depends(get_db),
 ):
-    db_interaction = Interaction(**interaction.model_dump())
+    db_interaction = Interaction(**schema_to_db_kwargs(interaction))
     db.add(db_interaction)
     db.commit()
     db.refresh(db_interaction)

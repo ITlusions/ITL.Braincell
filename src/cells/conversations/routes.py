@@ -9,6 +9,7 @@ from src.cells.conversations.model import Conversation
 from src.cells.conversations.schema import ConversationCreate, ConversationResponse, ConversationUpdate
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -19,7 +20,7 @@ async def create_conversation(
     conv: ConversationCreate,
     db: Session = Depends(get_db),
 ):
-    db_conv = Conversation(**conv.model_dump())
+    db_conv = Conversation(**schema_to_db_kwargs(conv))
     db.add(db_conv)
     db.commit()
     db.refresh(db_conv)

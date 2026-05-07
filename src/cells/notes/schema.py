@@ -14,6 +14,7 @@ class NoteCreate(BaseModel):
     meta_data: dict = Field(default_factory=dict)
 
 
+    created_at: datetime | None = None
 class NoteUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None

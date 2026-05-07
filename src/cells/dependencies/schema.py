@@ -21,6 +21,7 @@ class DependencyCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class DependencyResponse(DependencyCreate):
     id: UUID
     created_at: datetime | None = None

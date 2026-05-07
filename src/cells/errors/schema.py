@@ -17,6 +17,7 @@ class ErrorCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class ErrorResponse(ErrorCreate):
     id: UUID
     created_at: datetime | None = None

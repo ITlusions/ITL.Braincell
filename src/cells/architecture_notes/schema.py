@@ -15,6 +15,7 @@ class ArchitectureNoteCreate(BaseModel):
     meta_data: dict[str, Any] | None = None
 
 
+    created_at: datetime | None = None
 class ArchitectureNoteResponse(BaseModel):
     id: UUID
     component: str

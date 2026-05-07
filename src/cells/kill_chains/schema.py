@@ -40,6 +40,7 @@ class KillChainCreate(BaseModel):
     retention_days: int = 0
 
 
+    created_at: datetime | None = None
 class KillChainPhaseUpdate(BaseModel):
     """Payload for adding / updating a single phase."""
 

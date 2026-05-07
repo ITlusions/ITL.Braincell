@@ -9,6 +9,7 @@ from src.cells.files_discussed.model import FileDiscussed
 from src.cells.files_discussed.schema import FileDiscussedCreate, FileDiscussedResponse
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -23,7 +24,7 @@ async def create_file_discussed(file: FileDiscussedCreate, db: Session = Depends
         db.refresh(db_file)
         return db_file
 
-    db_file = FileDiscussed(**file.model_dump())
+    db_file = FileDiscussed(**schema_to_db_kwargs(file))
     db.add(db_file)
     db.commit()
     db.refresh(db_file)

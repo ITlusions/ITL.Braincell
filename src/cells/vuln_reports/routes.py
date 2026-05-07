@@ -9,6 +9,7 @@ from src.cells.vuln_reports.model import VulnReport
 from src.cells.vuln_reports.schema import VulnReportCreate, VulnReportResponse, VulnReportStatusUpdate
 from src.core.database import get_db
 from src.services.weaviate_service import get_weaviate_service
+from src.core.schemas import schema_to_db_kwargs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,7 +43,7 @@ def _index_in_weaviate(report: VulnReport) -> None:
 @router.post("", response_model=VulnReportResponse, status_code=status.HTTP_201_CREATED)
 async def create_vuln_report(entry: VulnReportCreate, db: Session = Depends(get_db)):
     """Create a new vulnerability report / bug bounty dossier."""
-    db_entry = VulnReport(**entry.model_dump())
+    db_entry = VulnReport(**schema_to_db_kwargs(entry))
     db.add(db_entry)
     db.commit()
     db.refresh(db_entry)

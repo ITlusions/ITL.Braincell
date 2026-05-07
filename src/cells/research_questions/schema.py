@@ -18,6 +18,7 @@ class ResearchQuestionCreate(BaseModel):
     meta_data: dict = Field(default_factory=dict)
 
 
+    created_at: datetime | None = None
 class ResearchQuestionUpdate(BaseModel):
     question: Optional[str] = None
     status: Optional[str] = None
