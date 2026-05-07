@@ -1,125 +1,33 @@
 name: Release pipeline — Tag push
 
 # ---------------------------------------------------------------------------
-# Triggert bij push van een semver tag: v1.2.3 of v1.2.3-rc.1 etc.
-# GitFlow: tags worden gezet op main (stable) of release/* (rc/pre-release)
+# Triggers on semver tag push: v1.2.3 or v1.2.3-rc.1 etc.
+# GitFlow: tags are set on main (stable) or release/* (rc/pre-release).
 #
-# Downloadt het wheel-artifact van de bestaande CI run voor dezelfde commit,
-# zodat er niet opnieuw gebouwd wordt. Maakt daarna een GitHub Release aan
-# met het wheel als downloadbaar asset.
+# 1. publish: downloads the existing CI wheel artifact and publishes to PyPI.
+# 2. release: creates a GitHub Release with the wheel as a downloadable asset.
 # ---------------------------------------------------------------------------
 on:
   push:
     tags:
-      - "v[0-9]*.[0-9]*.[0-9]*"            # v1.2.3 en v1.2.3-rc.1 / -beta.1 / -alpha.1
+      - "v[0-9]*.[0-9]*.[0-9]*"            # v1.2.3 and v1.2.3-rc.1 / -beta.1 / -alpha.1
 
 jobs:
+  publish:
+    name: Publish to PyPI
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-publish-pypi.yml@main
+    with:
+      artifact-name: "braincell-wheel"
+      commit-sha: ${{ github.sha }}
+      ci-workflow-name: "CI — Branch push"
+      environment: "production"
+
   release:
     name: GitHub Release
-    runs-on: ubuntu-latest
+    needs: publish
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
+    with:
+      tag: ${{ github.ref_name }}
+      artifact-name: "braincell-wheel"
+      artifact-run-id: ${{ needs.publish.outputs.ci-run-id }}
 
-    permissions:
-      contents: write
-      actions: read
-      id-token: write   # OIDC voor PyPI Trusted Publishing
-
-    environment: production
-
-    steps:
-      # ------------------------------------------------------------------
-      # 1. Extraheer versie en detecteer release type
-      # ------------------------------------------------------------------
-      - name: Extraheer versie en release type
-        id: meta
-        run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          if echo "$VERSION" | grep -qE '-(alpha|beta|rc)\.'; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-          fi
-          echo "Tag: $TAG → Versie: $VERSION"
-
-      # ------------------------------------------------------------------
-      # 2. Download wheel van de bestaande CI run voor deze commit
-      # ------------------------------------------------------------------
-      - name: Zoek CI run voor commit ${{ github.sha }}
-        id: find-run
-        run: |
-          RUN_ID=$(gh run list \
-            --repo "$GITHUB_REPOSITORY" \
-            --workflow "CI — Branch push" \
-            --commit "${{ github.sha }}" \
-            --status success \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')
-          if [ -n "$RUN_ID" ]; then
-            echo "run-id=$RUN_ID" >> $GITHUB_OUTPUT
-            echo "CI run gevonden: $RUN_ID"
-          else
-            echo "run-id=" >> $GITHUB_OUTPUT
-            echo "Geen geslaagde CI run gevonden — wheel wordt alsnog gebouwd"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download wheel artifact
-        if: steps.find-run.outputs.run-id != ''
-        uses: actions/download-artifact@v4
-        with:
-          name: braincell-wheel
-          run-id: ${{ steps.find-run.outputs.run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: dist/
-
-      # ------------------------------------------------------------------
-      # 3. Fallback: bouw wheel als artifact niet beschikbaar is
-      # ------------------------------------------------------------------
-      - name: Checkout (fallback build)
-        if: steps.find-run.outputs.run-id == ''
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-
-      - name: Build wheel (fallback)
-        if: steps.find-run.outputs.run-id == ''
-        run: |
-          pip install build
-          VERSION="${{ steps.meta.outputs.version }}"
-          sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
-          python -m build --wheel --outdir dist/
-
-      # ------------------------------------------------------------------
-      # 4. Publiceer naar PyPI
-      # ------------------------------------------------------------------
-      - name: Publiceer naar PyPI (OIDC)
-        run: |
-          pip install twine
-          twine upload dist/*.whl --verbose
-
-      # ------------------------------------------------------------------
-      # 5. GitHub Release aanmaken met wheel als asset
-      # ------------------------------------------------------------------
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: "${{ github.ref_name }}"
-          prerelease: ${{ steps.meta.outputs.prerelease }}
-          generate_release_notes: true
-          files: dist/*.whl
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Write job summary
-        run: |
-          echo "## Release aangemaakt: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| | |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Versie** | \`${{ steps.meta.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pre-release** | ${{ steps.meta.outputs.prerelease }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **PyPI** | https://pypi.org/project/itl-braincell/${{ steps.meta.outputs.version }}/ |" >> $GITHUB_STEP_SUMMARY
