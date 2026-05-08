@@ -1,0 +1,117 @@
+name: CI — Build & Test
+
+# ---------------------------------------------------------------------------
+# CI orchestrator for ITL.Braincell (Python library — itl-braincell on PyPI)
+#
+# Branching strategy (trunk-based + release branches):
+#   feature/*  → CI only (lint + test + build wheel)  — no release, no publish
+#   hotfix/*   → CI only
+#   develop    → CI only
+#   release/*  → CI → auto-tag vX.Y.Z-rc.N → GitHub Release (pre-release) → TestPyPI
+#   main       → CI → auto-tag vX.Y.Z      → GitHub Release (stable)      → PyPI
+#
+# Artifact contract:
+#   The wheel built here (artifact: "braincell-wheel") is the ONLY artifact
+#   consumed downstream. Never rebuild.
+#
+# Release → Publish chain:
+#   CI creates the GitHub Release with the wheel attached.
+#   Publishing the Release triggers publish.yml (release: [published]).
+#   For main → release is published immediately → PyPI fires automatically.
+#   For release/* → release is published as pre-release → TestPyPI fires.
+# ---------------------------------------------------------------------------
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - "feature/**"
+      - "release/**"
+      - "hotfix/**"
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - ".github/agents/**"
+  pull_request:
+    branches:
+      - main
+      - develop
+      - "release/**"
+  workflow_dispatch:   # allow manual re-run for debugging
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true   # cancel superseded runs on same branch
+
+jobs:
+  # ── Step 1: Resolve SemVer from git history / branch name ─────────────────
+  detect-version:
+    name: Detect version
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-detect-version.yml@main
+
+  # ── Step 2: Lint → Test (+ Postgres) → Build wheel → Upload artifact ──────
+  #
+  #   Runs in parallel after detect-version.
+  #   Produces artifact "braincell-wheel" (whl) + "coverage-report" (xml).
+  #   Tests are excluded from integration markers to keep CI fast.
+  #   The wheel is stamped with the resolved SemVer before build.
+  ci:
+    name: Lint / Test / Build
+    needs: detect-version
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-ci-python.yml@main
+    with:
+      python-version: "3.12"
+      ref: ${{ github.sha }}
+      artifact-name: "braincell-wheel"
+      version: ${{ needs.detect-version.outputs.python-version }}
+      ruff-src: "src/"
+      test-path: "tests/"
+      test-markers-exclude: "integration"
+      postgres-user: "braincell"
+      postgres-password: "braincell_test"
+      postgres-db: "braincell_test"
+      extra-install: "pip install -e ."
+
+  # ── Step 3: Auto-tag — main and release/* only ────────────────────────────
+  #
+  #   main     → bumps patch:  v1.4.2 → v1.4.3
+  #   release/ → bumps rc:     v1.5.0-rc.1 → v1.5.0-rc.2
+  #
+  #   feature/*, develop, hotfix/* branches do NOT auto-tag.
+  auto-tag:
+    name: Auto-tag semver
+    needs: ci
+    if: |
+      github.event_name == 'push' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/heads/release/')
+      )
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-auto-tag.yml@main
+    with:
+      commit-sha: ${{ github.sha }}
+    secrets:
+      gh-pat: ${{ secrets.GH_PAT }}
+
+  # ── Step 4: Create GitHub Release — main and release/* only ───────────────
+  #
+  #   Creates the GitHub Release with the built wheel attached as an asset.
+  #   This is the event that triggers publish.yml (release: [published]).
+  #
+  #   main     → stable release  (published immediately) → PyPI
+  #   release/ → pre-release     (published immediately) → TestPyPI
+  create-release:
+    name: Create GitHub Release
+    needs: auto-tag
+    if: |
+      github.event_name == 'push' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        startsWith(github.ref, 'refs/heads/release/')
+      )
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-release-gh.yml@main
+    with:
+      tag: ${{ needs.auto-tag.outputs.tag }}
+      artifact-name: "braincell-wheel"
+      generate-release-notes: true
+

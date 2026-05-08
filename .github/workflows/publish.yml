@@ -1,0 +1,82 @@
+name: Publish — Release published
+
+# ---------------------------------------------------------------------------
+# Publish orchestrator for ITL.Braincell
+#
+# Triggered when a GitHub Release is published — which happens automatically
+# at the end of ci.yml (create-release job) after a successful CI run.
+#
+# This means the chain is:
+#   ci.yml: build wheel → auto-tag → create GitHub Release (published)
+#                                            ↓ release: published event
+#   publish.yml: download wheel from CI artifact → twine upload (OIDC) → PyPI
+#
+# Authentication: PyPI Trusted Publisher (OIDC) — NO API tokens, NO secrets.
+#   Configured on PyPI / TestPyPI:
+#     Owner:      ITlusions
+#     Repo:       ITL.Braincell
+#     Workflow:   publish.yml          ✅ updated
+#     Environment (production):  production
+#     Environment (staging):     staging
+#   Docs: https://docs.pypi.org/trusted-publishers/
+#
+# Tag routing (resolved from the release tag name):
+#   v1.2.3            (no pre-release suffix) → PyPI      (environment: production)
+#   v1.2.3-rc.N       (-rc suffix)            → TestPyPI  (environment: staging)
+#   v1.2.3-beta.N     (-beta suffix)          → TestPyPI  (environment: staging)
+#   v1.2.3-alpha.N    (-alpha suffix)         → TestPyPI  (environment: staging)
+#
+# Jobs:
+#   1. resolve-target  — determine environment from release tag name
+#   2. publish         — download CI wheel → twine upload (OIDC) → PyPI / TestPyPI
+# ---------------------------------------------------------------------------
+on:
+  release:
+    types: [published]   # fires when ci.yml creates + publishes the GitHub Release
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false   # never cancel an in-flight publish
+
+jobs:
+  # ── Step 1: Resolve publish target from release tag name ──────────────────
+  #
+  #   stable tag   (no hyphen) → environment: production  → PyPI
+  #   pre-release  (has hyphen) → environment: staging     → TestPyPI
+  resolve-target:
+    name: Resolve publish target
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.check.outputs.environment }}
+      is-prerelease: ${{ steps.check.outputs.is-prerelease }}
+    steps:
+      - name: Check release tag type
+        id: check
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [[ "$TAG" == *"-"* ]]; then
+            echo "environment=staging"    >> $GITHUB_OUTPUT
+            echo "is-prerelease=true"     >> $GITHUB_OUTPUT
+            echo "Pre-release tag ($TAG) → TestPyPI (staging)"
+          else
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "is-prerelease=false"    >> $GITHUB_OUTPUT
+            echo "Stable tag ($TAG) → PyPI (production)"
+          fi
+
+  # ── Step 2: Download CI wheel → publish to PyPI / TestPyPI ───────────────
+  #
+  #   Finds the CI run (ci.yml) that built the wheel for this exact commit.
+  #   Downloads artifact "braincell-wheel" — never rebuilds from source.
+  #   Protected by GitHub Environment (approval gate on production).
+  publish:
+    name: Publish to PyPI
+    needs: resolve-target
+    uses: ITlusions/ITL.Github/.github/workflows/_reusable-publish-pypi.yml@main
+    with:
+      artifact-name: "braincell-wheel"
+      commit-sha: ${{ github.event.release.target_commitish }}
+      ci-workflow-name: "CI — Build & Test"
+      environment: ${{ needs.resolve-target.outputs.environment }}
+      fallback-build: false   # never rebuild — CI artifact is the only source of truth
+
