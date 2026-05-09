@@ -2,7 +2,7 @@
 
 ## Project
 
-BrainCell: persistent memory platform (AI agents + devs). PostgreSQL + Weaviate + Redis. Exposed via REST API and MCP.
+`itl-braincell` is the **core library** for the BrainCell persistent memory platform. It defines all memory cells, data models, services, and database infrastructure. Consumed by ITL.BrainCell.Api, ITL.BrainCell.Mcp, and ITL.BrainCell.Dashboard.
 
 - **Package**: `itl-braincell` v0.1.0 | **Python** `>=3.12`
 - **Key deps**: FastAPI, SQLAlchemy (async), Weaviate v4, Alembic, Pydantic v2, structlog
@@ -11,20 +11,21 @@ BrainCell: persistent memory platform (AI agents + devs). PostgreSQL + Weaviate 
 
 | Repo | Role |
 |---|---|
-| ITL.BrainCell | Core library — cells, services, base |
+| ITL.BrainCell | **Core library** — cells, services, models, DB infra |
 | ITL.BrainCell.Api | REST API (FastAPI) — port 9504 |
 | ITL.BrainCell.Mcp | MCP server (FastMCP) — port 9506 |
 | ITL.BrainCell.Dashboard | Web UI — port 9507 |
 
 ## Source Layout (`src/`)
 
-- `main.py` — FastAPI app, lifespan, CORS, cell route registration
 - `cells/__init__.py` — `discover_cells()` auto-scans `cells/<name>/cell.py`
 - `cells/base.py` — `MemoryCell` ABC
 - `cells/<name>/` — `cell.py`, `model.py`, `schema.py`, `routes.py`
-- `api/dependencies.py` — `get_session`, `get_weaviate`
-- `mcp/server_http.py` — default MCP (FastMCP, streamable HTTP); `server_stdio.py` — Claude Desktop
-- **DO NOT USE** `mcp/server.py` (prototype)
+- `core/config.py` — settings (Pydantic BaseSettings, env-driven)
+- `core/database.py` — async SQLAlchemy engine + session factory
+- `core/models.py` — shared ORM base
+- `core/schemas.py` — shared Pydantic schemas
+- `services/` — cross-cell business logic
 
 ## Cell Architecture
 
@@ -37,10 +38,8 @@ Each cell is a self-contained memory domain. `discover_cells()` registers them a
 - `cell.py` must export `cell = SomeName()` (MemoryCell instance)
 - `async def` for all route handlers
 - Weaviate cells: implement `get_weaviate_collection()` for schema setup
-- MCP tools: override `register_mcp_tools(mcp)` — no edits to `server_http.py`
+- MCP tools: override `register_mcp_tools(mcp)` — no edits to server files in consuming repos
 - List endpoints → JSON array; times → ISO 8601 UTC; ARM-style nested resources
-- Auth: `get_current_identity()` FastAPI dep (Keycloak JWT, Sprint 1)
-- Tenant isolation: PostgreSQL schema per tenant (Sprint 2)
 - Relative imports within `src/`; never import removed/renamed modules
 - Auth roles: `itl-cell-admin`, `itl-cell-writer`, `itl-cell-reader`, `itl-cell-auditor` | Realm: `itl` | Client: `itl-braincell`
 
@@ -58,10 +57,31 @@ Each cell is a self-contained memory domain. `discover_cells()` registers them a
 
 REST API 9504 · MCP 9506 · Dashboard 9507 · PostgreSQL 9500 · Weaviate 9501 · Redis 9503 · pgAdmin 9505
 
+## CI/CD Pipeline
+
+Two workflow files in `.github/workflows/`:
+
+| File | Trigger | Purpose |
+|---|---|---|
+| `ci.yml` | push / PR / dispatch | detect-version → lint+test+build wheel → auto-tag → GitHub Release |
+| `publish.yml` | `release: published` | download CI wheel → PyPI (stable) or TestPyPI (pre-release) |
+
+**Branch strategy:**
+
+| Branch | CI | Auto-tag | Publish |
+|---|---|---|---|
+| `feature/**`, `hotfix/**`, `develop` | lint + test + build | — | — |
+| `release/**` | lint + test + build | `vX.Y.Z-rc.N` | TestPyPI |
+| `main` | lint + test + build | `vX.Y.Z` | PyPI |
+
+- Wheel is built **once** in `ci.yml` (artifact: `braincell-wheel`). `publish.yml` downloads it — never rebuilds.
+- PyPI auth: OIDC Trusted Publisher — no API tokens, no secrets.
+
 ## Git
 
-- Branch: `feature/api-<issue>-<desc>` | Commit: `feat(<scope>): <desc> [Api#<n>]` | PR: `Closes #<n>`
-- GitHub projects: #19 Security/Multi-Tenancy · #20 Ingest Pipeline · #26 MCP Cell Tools
+- Branch: `feature/<issue>-<desc>` | `release/vX.Y` | `hotfix/<desc>`
+- Commit: `feat(<scope>): <desc>` | `fix(<scope>): <desc>`
+- PR: `Closes #<n>` | GitHub projects: #19 Security/Multi-Tenancy · #20 Ingest Pipeline · #26 MCP Cell Tools
 
 ## Run Locally
 
