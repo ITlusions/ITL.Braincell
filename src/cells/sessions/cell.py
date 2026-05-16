@@ -1,4 +1,4 @@
-"""Sessions memory cell."""
+﻿"""Sessions memory cell."""
 from fastapi import APIRouter
 
 from src.cells.base import MemoryCell
@@ -89,7 +89,7 @@ class SessionsCell(MemoryCell):
             """
             if not session_name:
                 return {"error": "session_name is required"}
-            from datetime import datetime
+            from datetime import datetime, timezone
             from src.services.retention_policy import evaluate as _retention
             retention = _retention("sessions", {"session_name": session_name, "summary": summary or ""})
             if retention_days is not None:
@@ -102,7 +102,7 @@ class SessionsCell(MemoryCell):
             try:
                 row = MemorySession(
                     session_name=session_name, summary=summary,
-                    status=status, start_time=datetime.utcnow(),
+                    status=status, start_time=datetime.now(timezone.utc),
                     retention_days=retention.retention_days,
                     retain_reason=retention.reason,
                     expires_at=retention.expires_at,
